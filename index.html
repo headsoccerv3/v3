@@ -1,14 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>html,body{margin:0;background:#0f141e;overflow:hidden}canvas{display:block;margin:0 auto;touch-action:none}</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Countryball Soccer 2026</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0f141e;
+    overflow: hidden;
+    height: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  canvas {
+    display: block;
+    margin: 0 auto;
+    touch-action: none;
+  }
+</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 </head>
 <body>
 <script>
-
-// PASTE YOUR GAME CODE HERE
 
 // --- Game Configuration & Settings ---
 var canvasWidth = 400;
@@ -2230,10 +2246,29 @@ var draw = function() {
     else if (gameState === "PENALTIES") { runPenaltyLoop(); }
 };
 
+// ============================================================
+// p5.js bootstrap
+// ============================================================
 function setup() {
-  var c = createCanvas(canvasWidth, canvasHeight);
-  c.parent(document.body);
+    var c = createCanvas(canvasWidth, canvasHeight);
+    c.parent(document.body);
 }
+
+// iOS touch support - treat taps as clicks
+function touchStarted() {
+    if (typeof mousePressed === "function") {
+        mousePressed();
+    }
+    return false;
+}
+
+function touchEnded() {
+    if (typeof mouseReleased === "function") {
+        mouseReleased();
+    }
+    return false;
+}
+
 </script>
 </body>
 </html>
