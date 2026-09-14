@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Countryball Soccer 2026</title>
 <style>
   html, body {
@@ -11,13 +11,20 @@
     background: #0f141e;
     overflow: hidden;
     height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+    touch-action: none;
+    overscroll-behavior: none;
   }
   canvas {
     display: block;
-    margin: 0 auto;
+    width: min(100vw, 100vh) !important;
+    height: min(100vw, 100vh) !important;
     touch-action: none;
   }
 </style>
@@ -80,14 +87,51 @@ var keyboard = {
     baseY: 248
 };
 
-// --- Save / Load ---
+// --- Save / Load (real localStorage on GitHub Pages) ---
 var saveAccountData = function() {
-    if (userAccount === null) { userAccount = "DEFAULT"; }
+    try {
+        var data = {
+            achievements: achievements,
+            difficultyWins: difficultyWins
+        };
+        localStorage.setItem("CBS_" + userAccount, JSON.stringify(data));
+    } catch (e) {}
 };
 var loadAccountData = function() {
+    try {
+        var raw = localStorage.getItem("CBS_" + userAccount);
+        if (raw) {
+            var parsed = JSON.parse(raw);
+            achievements = parsed.achievements || { brazilAward: false, victory: false, champion: false };
+            difficultyWins = parsed.difficultyWins || { EASY: false, MEDIUM: false, HARD: false };
+            return;
+        }
+    } catch (e) {}
     achievements = { brazilAward: false, victory: false, champion: false };
     difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
 };
+
+var saveGameToStorage = function() {
+    try {
+        if (savedGame === null) {
+            localStorage.removeItem("CBS_SAVED_GAME");
+        } else {
+            localStorage.setItem("CBS_SAVED_GAME", JSON.stringify(savedGame));
+        }
+    } catch (e) {}
+};
+
+var loadGameFromStorage = function() {
+    try {
+        var raw = localStorage.getItem("CBS_SAVED_GAME");
+        if (raw) {
+            savedGame = JSON.parse(raw);
+        }
+    } catch (e) {
+        savedGame = null;
+    }
+};
+
 var checkPasswordMatch = function(pw) {
     if (pw === "JJJames777") { username = "James"; userAccount = "JAMES"; }
     else if (pw === "7NechiIQ") { username = "Nechi"; userAccount = "NECHI"; }
@@ -1191,7 +1235,10 @@ var captureSaveState = function() {
     };
 };
 
-var saveCurrentGame = function() { savedGame = captureSaveState(); };
+var saveCurrentGame = function() {
+    savedGame = captureSaveState();
+    saveGameToStorage();
+};
 
 var restoreSavedGame = function() {
     if (savedGame === null) { return; }
@@ -1217,6 +1264,7 @@ var restoreSavedGame = function() {
     if (gameState === "PLAYING" || gameState === "OVERTIME") { timerStart = millis() - s.elapsedMs; }
     else if (gameState === "PENALTIES") { penTimer = millis(); }
     particles = []; paused = false; savedGame = null;
+    saveGameToStorage();
 };
 
 var abandonGame = function() {
@@ -2151,6 +2199,7 @@ var mousePressed = function() {
             selectedCountry = idx;
             buildInitialBracket();
             savedGame = null;
+            saveGameToStorage();
             if (gameMode === "SINGLE") { gameState = "DIFFICULTY_SELECT"; }
             else { gameState = "BRACKET"; }
         });
@@ -2170,6 +2219,7 @@ var mousePressed = function() {
             selectedCountry = idx;
             do { aiCountry = floor(random(0, 16)); } while (aiCountry === selectedCountry);
             savedGame = null;
+            saveGameToStorage();
             gameState = "PENALTIES";
             setupPenaltyData();
         });
@@ -2216,7 +2266,11 @@ var mouseDragged = function() {
 // --- Main Draw Loop ---
 var draw = function() {
     background(15, 20, 30);
-    if (teamColors.length === 0) { initColors(); loadAccountData(); }
+    if (teamColors.length === 0) {
+        initColors();
+        loadAccountData();
+        loadGameFromStorage();
+    }
 
     if (gameState === "TITLE") { drawTitleScreen(); }
     else if (gameState === "SETTINGS") { drawSettingsScreen(); }
@@ -2247,25 +2301,20 @@ var draw = function() {
 };
 
 // ============================================================
-// p5.js bootstrap
+// p5.js bootstrap + iOS touch
 // ============================================================
 function setup() {
     var c = createCanvas(canvasWidth, canvasHeight);
     c.parent(document.body);
 }
 
-// iOS touch support - treat taps as clicks
 function touchStarted() {
-    if (typeof mousePressed === "function") {
-        mousePressed();
-    }
+    if (typeof mousePressed === "function") { mousePressed(); }
     return false;
 }
 
 function touchEnded() {
-    if (typeof mouseReleased === "function") {
-        mouseReleased();
-    }
+    if (typeof mouseReleased === "function") { mouseReleased(); }
     return false;
 }
 
