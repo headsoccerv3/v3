@@ -1,0 +1,2239 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html,body{margin:0;background:#0f141e;overflow:hidden}canvas{display:block;margin:0 auto;touch-action:none}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+<body>
+<script>
+
+// PASTE YOUR GAME CODE HERE
+
+// --- Game Configuration & Settings ---
+var canvasWidth = 400;
+var canvasHeight = 400;
+var gameState = "TITLE";
+var gameMode = "SINGLE";
+var username = "Player";
+var currentPassword = "";
+var activeInputMode = "NONE";
+var halftimeEnabled = true;
+var p1ControlMode = "ARROWS";
+var difficulty = "EASY";
+var userAccount = "DEFAULT";
+var achievements = { brazilAward: false, victory: false, champion: false };
+var difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
+
+// Pause / Save
+var paused = false;
+var pauseStart = 0;
+var savedGame = null;
+
+// Local 2P setup
+var tempName1 = "Player 1";
+var tempName2 = "Player 2";
+var p2Country = 1;
+
+// Match end screen
+var matchWinnerName = "";
+var matchWinnerCountry = 0;
+var matchIsWin = true;
+var matchScoreLine = "";
+var matchIsPenalties = false;
+var confetti = [];
+
+// Mobile controls
+var mobileControlsEnabled = false;
+var mobileBtn = { left: false, right: false, jump: false };
+var joystick = {
+    baseX: 62, baseY: 363, baseRadius: 34,
+    knobX: 62, knobY: 363, knobRadius: 15,
+    active: false
+};
+
+// In-canvas on-screen keyboard
+var keyboard = {
+    visible: false,
+    target: "NONE",
+    shift: false,
+    keyW: 36,
+    keyH: 24,
+    gap: 3,
+    rowGap: 3,
+    baseY: 248
+};
+
+// --- Save / Load ---
+var saveAccountData = function() {
+    if (userAccount === null) { userAccount = "DEFAULT"; }
+};
+var loadAccountData = function() {
+    achievements = { brazilAward: false, victory: false, champion: false };
+    difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
+};
+var checkPasswordMatch = function(pw) {
+    if (pw === "JJJames777") { username = "James"; userAccount = "JAMES"; }
+    else if (pw === "7NechiIQ") { username = "Nechi"; userAccount = "NECHI"; }
+    else if (pw === "dandanthesodacan") { username = "MrPrayingMantis"; userAccount = "MANTIS"; }
+    else { userAccount = "DEFAULT"; }
+    loadAccountData();
+};
+
+// --- Match Timers & State ---
+var timerStart = 0;
+var currentPeriod = 1;
+var periodDuration = 45;
+var extraTimeDuration = 30;
+var breakStart = 0;
+var breakDuration = 5;
+var score1 = 0;
+var score2 = 0;
+
+// --- Penalty Shootout ---
+var penaltyTurn = 1;
+var p1PenScores = [0, 0, 0, 0, 0];
+var p2PenScores = [0, 0, 0, 0, 0];
+var penaltyIndex = 0;
+var penBallState = "READY";
+var penGoalieState = "IDLE";
+var penBallDir = "NONE";
+var penTimer = 0;
+var selectedCountry = 0;
+var aiCountry = 1;
+var tournamentRound = 1;
+
+// --- Bracket ---
+var bracket = { r1: [], r2: [], r3: [], r4: [] };
+var tournamentTeams = [
+    "BRA", "ARG", "FRA", "GER",
+    "ENG", "ESP", "ITA", "JPN",
+    "MEX", "IRL", "USA", "URU",
+    "FSM", "CAN", "WAL", "SCO"
+];
+var teamColors = [];
+var gravity = 0.4;
+var friction = 0.98;
+var player1, player2, ball;
+var goalWidth = 50;
+var goalHeight = 120;
+var particles = [];
+var keys = {};
+
+// --- Typing helpers ---
+var LOWER_ALPHA = "abcdefghijklmnopqrstuvwxyz";
+var UPPER_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+var NUMERIC = "0123456789";
+var shiftDown = false;
+
+var toUpperCh = function(ch) {
+    var i;
+    for (i = 0; i < LOWER_ALPHA.length; i++) {
+        if (LOWER_ALPHA.charAt(i) === ch) { return UPPER_ALPHA.charAt(i); }
+    }
+    return ch;
+};
+
+var toLowerCh = function(ch) {
+    var i;
+    for (i = 0; i < UPPER_ALPHA.length; i++) {
+        if (UPPER_ALPHA.charAt(i) === ch) { return LOWER_ALPHA.charAt(i); }
+    }
+    return ch;
+};
+
+var keyCodeToChar = function(kc) {
+    if (kc === 32) { return " "; }
+    if (kc >= 48 && kc <= 57) { return NUMERIC.charAt(kc - 48); }
+    if (kc >= 65 && kc <= 90) {
+        var idx = kc - 65;
+        if (shiftDown) { return UPPER_ALPHA.charAt(idx); }
+        return LOWER_ALPHA.charAt(idx);
+    }
+    return "";
+};
+
+var resolveTypedChar = function() {
+    var ks = "";
+    if (key !== undefined && key !== null) { ks = "" + key; }
+    if (ks.length === 1) { return ks; }
+    return keyCodeToChar(keyCode);
+};
+
+// --- Colors ---
+var initColors = function() {
+    teamColors = [
+        color(0, 156, 59), color(116, 172, 223), color(0, 35, 149), color(40, 40, 40),
+        color(206, 17, 38), color(241, 196, 0), color(0, 146, 70), color(240, 240, 255),
+        color(0, 104, 71), color(22, 155, 98), color(60, 59, 110), color(91, 146, 229),
+        color(0, 180, 240), color(220, 20, 20), color(212, 1, 29), color(0, 101, 189)
+    ];
+};
+var getAiConfig = function() {
+    if (difficulty === "EASY") { return { speed: 2.6, jumpPower: -8.2, jumpChance: 0.25, defendPos: 340 }; }
+    else if (difficulty === "MEDIUM") { return { speed: 4.2, jumpPower: -9.8, jumpChance: 0.50, defendPos: 320 }; }
+    else { return { speed: 5.6, jumpPower: -10.8, jumpChance: 0.80, defendPos: 300 }; }
+};
+
+// --- Flag palette ---
+var getFlagRGB = function(idx, nx, ny) {
+    var ax, ay, u, v, gx, gy, sx, sy, rr, ang;
+    switch (idx) {
+        case 0:
+            if (abs(nx) + abs(ny) < 0.95) {
+                if (nx * nx + ny * ny < 0.2) {
+                    if (abs(ny + nx * 0.12) < 0.045) { return [255, 255, 255]; }
+                    if ((abs(nx + 0.05) < 0.03 && abs(ny + 0.13) < 0.03) ||
+                        (abs(nx - 0.1) < 0.03 && abs(ny - 0.05) < 0.03) ||
+                        (abs(nx + 0.02) < 0.03 && abs(ny + 0.05) < 0.03)) {
+                        return [255, 255, 255];
+                    }
+                    return [0, 39, 118];
+                }
+                return [255, 223, 0];
+            }
+            return [0, 156, 59];
+        case 1:
+            if (abs(ny) > 0.34) { return [116, 172, 223]; }
+            rr = nx * nx + ny * ny;
+            if (rr < 0.05) { return [246, 180, 14]; }
+            if (rr < 0.09) {
+                ang = atan2(ny, nx);
+                if (floor((ang + PI) / (TWO_PI / 12)) % 2 === 0) { return [246, 180, 14]; }
+            }
+            return [255, 255, 255];
+        case 2:
+            if (nx < -0.33) { return [0, 35, 149]; }
+            if (nx > 0.33) { return [237, 41, 57]; }
+            return [255, 255, 255];
+        case 3:
+            if (ny < -0.33) { return [30, 30, 30]; }
+            if (ny > 0.33) { return [255, 206, 0]; }
+            return [221, 0, 0];
+        case 4:
+            if (abs(nx) < 0.15 || abs(ny) < 0.15) { return [206, 17, 38]; }
+            return [255, 255, 255];
+        case 5:
+            if (abs(ny) > 0.28) { return [198, 11, 30]; }
+            if (nx > -0.4 && nx < -0.12 && abs(ny) < 0.22) {
+                if (abs(nx + 0.26) < 0.13 && abs(ny) < 0.2) {
+                    if (abs(ny) > 0.1) { return [198, 11, 30]; }
+                    if (abs(nx + 0.32) < 0.05) { return [198, 11, 30]; }
+                    return [255, 210, 60];
+                }
+            }
+            return [241, 196, 0];
+        case 6:
+            if (nx < -0.33) { return [0, 146, 70]; }
+            if (nx > 0.33) { return [206, 17, 38]; }
+            return [255, 255, 255];
+        case 7:
+            rr = nx * nx + ny * ny;
+            if (rr < 0.35) { return [188, 0, 45]; }
+            return [255, 255, 255];
+        case 8:
+            if (nx < -0.33) { return [0, 104, 71]; }
+            if (nx > 0.33) { return [206, 17, 38]; }
+            rr = nx * nx + ny * ny;
+            if (rr < 0.09) {
+                if (rr < 0.02) { return [139, 90, 43]; }
+                if (abs(nx) < 0.02 || abs(ny) < 0.02) { return [139, 90, 43]; }
+                if (nx < 0 && ny > 0) { return [46, 139, 87]; }
+            }
+            return [255, 255, 255];
+        case 9:
+            if (nx < -0.33) { return [22, 155, 98]; }
+            if (nx > 0.33) { return [255, 136, 62]; }
+            return [255, 255, 255];
+        case 10:
+            if (nx < -0.24 && ny < 0.08) {
+                u = (nx + 1) / 0.76;
+                v = (ny + 1) / 1.08;
+                gx = floor(u * 5);
+                gy = floor(v * 5);
+                sx = u * 5 - gx - 0.5;
+                sy = v * 5 - gy - 0.5;
+                if (sx * sx + sy * sy < 0.15) { return [255, 255, 255]; }
+                return [60, 59, 110];
+            }
+            if (floor((ny + 1) * 6.5) % 2 === 0) { return [220, 20, 20]; }
+            return [255, 255, 255];
+        case 11:
+            if (nx < 0.05 && ny < -0.15) {
+                rr = nx * nx + (ny + 0.6) * (ny + 0.6);
+                if (rr < 0.035) { return [246, 180, 14]; }
+                if (rr < 0.08) {
+                    ang = atan2(ny + 0.6, nx);
+                    if (floor((ang + PI) / (TWO_PI / 8)) % 2 === 0) { return [246, 180, 14]; }
+                }
+            }
+            if (ny > 0) {
+                if (floor((ny) * 5.5) % 2 === 0) { return [91, 146, 229]; }
+            } else {
+                if (floor((ny + 0.4) * 5.5) % 2 === 0) { return [91, 146, 229]; }
+            }
+            return [255, 255, 255];
+        case 12:
+            if ((nx * nx + (ny + 0.25) * (ny + 0.25) < 0.02) ||
+                (nx * nx + (ny - 0.25) * (ny - 0.25) < 0.02) ||
+                ((nx + 0.25) * (nx + 0.25) + ny * ny < 0.02) ||
+                ((nx - 0.25) * (nx - 0.25) + ny * ny < 0.02)) {
+                return [255, 255, 255];
+            }
+            return [0, 180, 240];
+        case 13:
+            if (nx < -0.28 || nx > 0.28) { return [220, 20, 20]; }
+            ax = abs(nx);
+            if (ax < 0.04 && abs(ny) < 0.4) { return [220, 20, 20]; }
+            if (ax < 0.18 && abs(ny) < 0.28) {
+                if (ax < 0.08 + abs(ny) * 0.4) { return [220, 20, 20]; }
+            }
+            if (ax < 0.24 && abs(ny) < 0.1) { return [220, 20, 20]; }
+            return [255, 255, 255];
+        case 14:
+            if (ny > 0.05) { return [0, 130, 60]; }
+            if (abs(nx) < 0.2 && abs(ny + 0.15) < 0.18) { return [212, 1, 29]; }
+            if (nx > 0.1 && nx < 0.35 && abs(ny + 0.12) < 0.06) { return [212, 1, 29]; }
+            if (nx < -0.15 && nx > -0.35 && abs(ny + 0.2) < 0.06) { return [212, 1, 29]; }
+            return [255, 255, 255];
+        case 15:
+            if (abs(abs(nx) - abs(ny)) < 0.15) { return [255, 255, 255]; }
+            return [0, 101, 189];
+        default:
+            return [120, 120, 120];
+    }
+};
+
+var soccerPatternRGB = function(nx, ny) {
+    var r = sqrt(nx * nx + ny * ny);
+    if (r < 0.38) { return [26, 26, 26]; }
+    var i, a, cx, cy, dx, dy;
+    for (i = 0; i < 5; i++) {
+        a = TWO_PI / 5 * i - HALF_PI;
+        cx = cos(a) * 0.72;
+        cy = sin(a) * 0.72;
+        dx = nx - cx;
+        dy = ny - cy;
+        if (dx * dx + dy * dy < 0.11) { return [26, 26, 26]; }
+    }
+    return [250, 250, 250];
+};
+
+var drawFlagShapes = function(idx, w, h) {
+    noStroke();
+    var step = 1;
+    var py, px, nx, ny, rgb;
+    var lastR, lastG, lastB, segStart;
+    for (py = 0; py < h; py += step) {
+        ny = ((py + step * 0.5) / h) * 2 - 1;
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = 0;
+        for (px = 0; px <= w; px += step) {
+            if (px < w) {
+                nx = ((px + step * 0.5) / w) * 2 - 1;
+                rgb = getFlagRGB(idx, nx, ny);
+            } else {
+                rgb = [-1, -1, -1];
+            }
+            if (rgb[0] !== lastR || rgb[1] !== lastG || rgb[2] !== lastB) {
+                if (lastR >= 0) {
+                    fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, step);
+                }
+                lastR = rgb[0]; lastG = rgb[1]; lastB = rgb[2];
+                segStart = px;
+            }
+        }
+    }
+};
+
+var drawFlag = function(idx, x, y, w, h) {
+    pushMatrix();
+    translate(x, y);
+    drawFlagShapes(idx, w, h);
+    noFill(); stroke(0, 90); strokeWeight(1);
+    rect(0, 0, w, h);
+    popMatrix();
+};
+
+var drawCountryballScanlines = function(idx, radius) {
+    var rSq = radius * radius;
+    var step = 0.5;
+    var bandHeight = 1.3;
+    var py, px, xSpan, rgb, r2, g2, b2, qr, qg, qb;
+    var lastR, lastG, lastB, segStart;
+    var lx = -0.48, ly = -0.62, lz = 0.62;
+    for (py = -radius; py <= radius; py += step) {
+        xSpan = sqrt(max(0, rSq - py * py));
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = -xSpan;
+        for (px = -xSpan; px <= xSpan; px += step) {
+            rgb = getFlagRGB(idx, px / radius, py / radius);
+            var nx = px / radius;
+            var ny = py / radius;
+            var nzSq = 1 - nx * nx - ny * ny;
+            var nz = nzSq > 0 ? sqrt(nzSq) : 0;
+            var diff = nx * lx + ny * ly + nz * lz;
+            if (diff < 0) { diff = 0; }
+            var intensity = 0.55 + 0.72 * diff;
+            intensity = intensity * (0.82 + 0.18 * nz);
+            var spec = pow(diff, 34) * 1.1;
+            r2 = rgb[0] * intensity + 255 * spec;
+            g2 = rgb[1] * intensity + 255 * spec;
+            b2 = rgb[2] * intensity + 255 * spec;
+            if (r2 > 255) { r2 = 255; } else if (r2 < 0) { r2 = 0; }
+            if (g2 > 255) { g2 = 255; } else if (g2 < 0) { g2 = 0; }
+            if (b2 > 255) { b2 = 255; } else if (b2 < 0) { b2 = 0; }
+            qr = (r2 / 12 | 0) * 12;
+            qg = (g2 / 12 | 0) * 12;
+            qb = (b2 / 12 | 0) * 12;
+            if (qr !== lastR || qg !== lastG || qb !== lastB) {
+                if (lastR >= 0) {
+                    noStroke(); fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, bandHeight);
+                }
+                lastR = qr; lastG = qg; lastB = qb;
+                segStart = px;
+            }
+        }
+        if (lastR >= 0) {
+            noStroke(); fill(lastR, lastG, lastB);
+            rect(segStart, py, xSpan - segStart, bandHeight);
+        }
+    }
+};
+
+var drawCountryball = function(idx, x, y, radius, lookDir) {
+    pushMatrix();
+    translate(x, y);
+    noStroke();
+    fill(0, 0, 0, 60); ellipse(2, radius + 2, radius * 1.7, 10);
+    fill(0, 0, 0, 40); ellipse(2, radius + 2, radius * 2.0, 14);
+    drawCountryballScanlines(idx, radius);
+    noFill(); stroke(0); strokeWeight(2.5);
+    ellipse(0, 0, radius * 2, radius * 2);
+    var eyeOffset = (lookDir > 0) ? 3 : -3;
+    fill(240); stroke(0); strokeWeight(1.5);
+    pushMatrix(); translate(-8 + eyeOffset, -6); rotate(lookDir > 0 ? -0.12 : 0.12); ellipse(0, 0, 8, 11); popMatrix();
+    pushMatrix(); translate(8 + eyeOffset, -6); rotate(lookDir > 0 ? 0.12 : -0.12); ellipse(0, 0, 8, 11); popMatrix();
+    noStroke(); fill(0);
+    ellipse(-8 + eyeOffset * 0.6, -5, 3.5, 4.5);
+    ellipse(8 + eyeOffset * 0.6, -5, 3.5, 4.5);
+    fill(255, 220);
+    ellipse(-8 + eyeOffset * 0.6 - 1, -6, 1.5, 1.8);
+    ellipse(8 + eyeOffset * 0.6 - 1, -6, 1.5, 1.8);
+    noStroke(); fill(255, 200);
+    ellipse(-radius * 0.38, -radius * 0.38, radius * 0.28, radius * 0.22);
+    fill(255, 120);
+    ellipse(-radius * 0.38, -radius * 0.38, radius * 0.44, radius * 0.34);
+    popMatrix();
+};
+
+var drawBallScanlines = function(x, y, radius, flagIdx) {
+    pushMatrix();
+    translate(x, y);
+    var rSq = radius * radius;
+    var step = 0.5;
+    var bandHeight = 1.4;
+    var py, px, xSpan, rgb, r2, g2, b2, qr, qg, qb;
+    var lastR, lastG, lastB, segStart;
+    var lx = -0.48, ly = -0.62, lz = 0.62;
+    for (py = -radius; py <= radius; py += step) {
+        xSpan = sqrt(max(0, rSq - py * py));
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = -xSpan;
+        for (px = -xSpan; px <= xSpan; px += step) {
+            var nx = px / radius;
+            var ny = py / radius;
+            if (flagIdx >= 0) { rgb = getFlagRGB(flagIdx, nx, ny); }
+            else { rgb = soccerPatternRGB(nx, ny); }
+            var nzSq = 1 - nx * nx - ny * ny;
+            var nz = nzSq > 0 ? sqrt(nzSq) : 0;
+            var diff = nx * lx + ny * ly + nz * lz;
+            if (diff < 0) { diff = 0; }
+            var intensity = 0.55 + 0.72 * diff;
+            intensity = intensity * (0.82 + 0.18 * nz);
+            var spec = pow(diff, 34) * 1.2;
+            r2 = rgb[0] * intensity + 255 * spec;
+            g2 = rgb[1] * intensity + 255 * spec;
+            b2 = rgb[2] * intensity + 255 * spec;
+            if (r2 > 255) { r2 = 255; } else if (r2 < 0) { r2 = 0; }
+            if (g2 > 255) { g2 = 255; } else if (g2 < 0) { g2 = 0; }
+            if (b2 > 255) { b2 = 255; } else if (b2 < 0) { b2 = 0; }
+            qr = (r2 / 12 | 0) * 12;
+            qg = (g2 / 12 | 0) * 12;
+            qb = (b2 / 12 | 0) * 12;
+            if (qr !== lastR || qg !== lastG || qb !== lastB) {
+                if (lastR >= 0) {
+                    noStroke(); fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, bandHeight);
+                }
+                lastR = qr; lastG = qg; lastB = qb;
+                segStart = px;
+            }
+        }
+        if (lastR >= 0) {
+            noStroke(); fill(lastR, lastG, lastB);
+            rect(segStart, py, xSpan - segStart, bandHeight);
+        }
+    }
+    noFill(); stroke(0); strokeWeight(1.4);
+    ellipse(0, 0, radius * 2, radius * 2);
+    noStroke(); fill(255, 210);
+    ellipse(-radius * 0.38, -radius * 0.38, radius * 0.35, radius * 0.28);
+    popMatrix();
+};
+
+var drawStyledButton = function(x, y, w, h, label, mainClr) {
+    var hover = (mouseX > x && mouseX < x + w && mouseY > y && mouseY < y + h);
+    fill(0, 60); rect(x + 2, y + 3, w, h, 8);
+    var rClr = min(255, red(mainClr) + 30);
+    var gClr = min(255, green(mainClr) + 30);
+    var bClr = min(255, blue(mainClr) + 30);
+    fill(hover ? color(rClr, gClr, bClr) : mainClr);
+    stroke(hover ? color(255, 230, 100) : color(255, 200));
+    strokeWeight(2); rect(x, y, w, h, 8);
+    noStroke(); fill(255, 80); rect(x + 2, y + 2, w - 4, h / 2 - 2, 6);
+    fill(255); textAlign(CENTER, CENTER); textSize(11);
+    text(label, x + w / 2, y + h / 2);
+};
+
+var drawDisabledButton = function(x, y, w, h, label) {
+    fill(0, 60); rect(x + 2, y + 3, w, h, 8);
+    fill(40, 40, 45);
+    stroke(90); strokeWeight(2); rect(x, y, w, h, 8);
+    fill(120); textAlign(CENTER, CENTER); textSize(11);
+    text(label, x + w / 2, y + h / 2);
+};
+
+var spawnBurst = function(x, y, c) {
+    for (var i = 0; i < 14; i++) {
+        particles.push({ x: x, y: y, vx: random(-4, 4), vy: random(-6, 1), life: 255, color: c });
+    }
+};
+var updateAndDrawParticles = function() {
+    for (var i = particles.length - 1; i >= 0; i--) {
+        var p = particles[i];
+        if (!paused) {
+            p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 9;
+        }
+        fill(red(p.color), green(p.color), blue(p.color), p.life);
+        noStroke(); ellipse(p.x, p.y, 5, 5);
+        if (p.life <= 0) { particles.splice(i, 1); }
+    }
+};
+
+var spawnConfetti = function() {
+    for (var i = 0; i < 4; i++) {
+        var col;
+        var r = random(0, 4);
+        if (r < 1) {
+            col = color(255, 220, 80);
+        } else if (r < 2) {
+            col = color(80, 200, 255);
+        } else if (r < 3) {
+            col = color(255, 120, 180);
+        } else {
+            col = color(120, 255, 150);
+        }
+        confetti.push({
+            x: random(-10, canvasWidth + 10),
+            y: -10,
+            vx: random(-0.8, 0.8),
+            vy: random(1.2, 3.2),
+            color: col,
+            size: random(4, 8),
+            rot: random(0, TWO_PI),
+            rotSpeed: random(-0.15, 0.15)
+        });
+    }
+};
+
+var updateAndDrawConfetti = function() {
+    for (var i = confetti.length - 1; i >= 0; i--) {
+        var c = confetti[i];
+        c.x += c.vx;
+        c.y += c.vy;
+        c.vy += 0.05;
+        c.rot += c.rotSpeed;
+        pushMatrix();
+        translate(c.x, c.y);
+        rotate(c.rot);
+        fill(red(c.color), green(c.color), blue(c.color), 230);
+        noStroke();
+        rect(-c.size / 2, -c.size / 3, c.size, c.size / 1.5);
+        popMatrix();
+        if (c.y > canvasHeight + 20) { confetti.splice(i, 1); }
+    }
+};
+
+// --- Tournament ---
+var buildInitialBracket = function() {
+    var pool = [];
+    var i, j;
+    for (i = 0; i < 16; i++) { if (i !== selectedCountry) { pool.push(i); } }
+    for (j = pool.length - 1; j > 0; j--) {
+        var randIdx = floor(random(0, j + 1));
+        var temp = pool[j]; pool[j] = pool[randIdx]; pool[randIdx] = temp;
+    }
+    var seeds = [selectedCountry];
+    for (i = 0; i < 15; i++) { seeds.push(pool[i]); }
+
+    bracket.r1 = [];
+    for (i = 0; i < 8; i++) {
+        bracket.r1.push({ t1: seeds[i * 2], t2: seeds[i * 2 + 1], s1: null, s2: null, winner: null });
+    }
+    bracket.r2 = [];
+    for (i = 0; i < 4; i++) { bracket.r2.push({ t1: null, t2: null, s1: null, s2: null, winner: null }); }
+    bracket.r3 = [];
+    for (i = 0; i < 2; i++) { bracket.r3.push({ t1: null, t2: null, s1: null, s2: null, winner: null }); }
+    bracket.r4 = [{ t1: null, t2: null, s1: null, s2: null, winner: null }];
+
+    tournamentRound = 1;
+    aiCountry = bracket.r1[0].t2;
+};
+
+var simulateMatch = function(match) {
+    if (match.t1 === null || match.t2 === null) { return; }
+    var sc1 = floor(random(0, 5));
+    var sc2 = floor(random(0, 5));
+    if (sc1 === sc2) { sc1++; }
+    match.s1 = sc1; match.s2 = sc2;
+    match.winner = sc1 > sc2 ? match.t1 : match.t2;
+};
+
+var checkMatchAchievements = function() {
+    if (score1 - score2 >= 6) {
+        achievements.brazilAward = true;
+        saveAccountData();
+    }
+};
+
+var simulateCurrentRound = function() {
+    var roundList;
+    if (tournamentRound === 1) { roundList = bracket.r1; }
+    else if (tournamentRound === 2) { roundList = bracket.r2; }
+    else if (tournamentRound === 3) { roundList = bracket.r3; }
+    else { roundList = bracket.r4; }
+
+    var i;
+    for (i = 0; i < roundList.length; i++) {
+        var m = roundList[i];
+        if (m.winner === null) {
+            if (m.t1 === selectedCountry || m.t2 === selectedCountry) {
+                m.s1 = score1; m.s2 = score2;
+                m.winner = score1 > score2 ? m.t1 : m.t2;
+                if (m.t1 === selectedCountry || m.t2 === selectedCountry) {
+                    checkMatchAchievements();
+                }
+            } else {
+                simulateMatch(m);
+            }
+        }
+    }
+
+    if (tournamentRound === 1) {
+        for (i = 0; i < 4; i++) {
+            bracket.r2[i].t1 = bracket.r1[i * 2].winner;
+            bracket.r2[i].t2 = bracket.r1[i * 2 + 1].winner;
+        }
+    } else if (tournamentRound === 2) {
+        for (i = 0; i < 2; i++) {
+            bracket.r3[i].t1 = bracket.r2[i * 2].winner;
+            bracket.r3[i].t2 = bracket.r2[i * 2 + 1].winner;
+        }
+    } else if (tournamentRound === 3) {
+        bracket.r4[0].t1 = bracket.r3[0].winner;
+        bracket.r4[0].t2 = bracket.r3[1].winner;
+    }
+
+    if (bracket.r4[0].winner === selectedCountry) {
+        achievements.victory = true;
+        if (gameMode === "SINGLE") {
+            difficultyWins[difficulty] = true;
+            if (difficultyWins.EASY && difficultyWins.MEDIUM && difficultyWins.HARD) {
+                achievements.champion = true;
+            }
+        }
+        saveAccountData();
+    }
+
+    if (tournamentRound < 5) { tournamentRound++; }
+};
+
+var isPlayerEliminated = function() {
+    var allRounds = [bracket.r1, bracket.r2, bracket.r3, bracket.r4];
+    for (var r = 0; r < allRounds.length; r++) {
+        for (var m = 0; m < allRounds[r].length; m++) {
+            var chk = allRounds[r][m];
+            if (chk && chk.winner !== null &&
+                (chk.t1 === selectedCountry || chk.t2 === selectedCountry) &&
+                chk.winner !== selectedCountry) {
+                return true;
+            }
+        }
+    }
+    return false;
+};
+
+var setNextAiOpponent = function() {
+    var activeMatchList;
+    if (tournamentRound === 1) { activeMatchList = bracket.r1; }
+    else if (tournamentRound === 2) { activeMatchList = bracket.r2; }
+    else if (tournamentRound === 3) { activeMatchList = bracket.r3; }
+    else { activeMatchList = bracket.r4; }
+
+    for (var i = 0; i < activeMatchList.length; i++) {
+        var m = activeMatchList[i];
+        if (m.t1 === selectedCountry) { aiCountry = m.t2; return; }
+        if (m.t2 === selectedCountry) { aiCountry = m.t1; return; }
+    }
+};
+
+var initEntities = function() {
+    if (teamColors.length === 0) { initColors(); }
+    var isSolo = (gameMode === "SINGLE");
+    var isLocal = (gameMode === "LOCAL");
+    var aiCfg = getAiConfig();
+
+    var p1Name = isLocal ? tempName1 : username;
+    var p1CountryIdx = selectedCountry;
+
+    var p2TeamIdx;
+    var p2Name;
+    if (isLocal) {
+        p2TeamIdx = p2Country;
+        p2Name = tempName2;
+    } else {
+        p2TeamIdx = aiCountry;
+        p2Name = tournamentTeams[aiCountry];
+    }
+
+    player1 = {
+        x: 80, y: 300, vx: 0, vy: 0, radius: 24,
+        speed: 5.8, jumpPower: -10.8, teamIndex: p1CountryIdx,
+        isGrounded: false, color: teamColors[p1CountryIdx], name: p1Name
+    };
+    player2 = {
+        x: 320, y: 300, vx: 0, vy: 0, radius: 24,
+        speed: isSolo ? aiCfg.speed : 5.8,
+        jumpPower: isSolo ? aiCfg.jumpPower : -10.8, teamIndex: p2TeamIdx,
+        isGrounded: false, color: teamColors[p2TeamIdx], name: p2Name
+    };
+    ball = { x: 200, y: 150, vx: random(-2, 2), vy: 0, radius: 11, angle: 0, teamIndex: -1 };
+};
+
+var setupPenaltyData = function() {
+    penBallState = "READY"; penGoalieState = "IDLE"; penBallDir = "NONE";
+    penaltyTurn = 1; penaltyIndex = 0;
+    p1PenScores = [0, 0, 0, 0, 0]; p2PenScores = [0, 0, 0, 0, 0];
+    score1 = 0; score2 = 0;
+};
+
+var triggerPenaltyShot = function(dir) {
+    if (paused) { return; }
+    if (penBallState !== "READY") { return; }
+    penBallState = "KICKED"; penTimer = millis();
+    if (penaltyTurn === 1) {
+        penBallDir = dir;
+        var diveWrong = (random(1) < (difficulty === "EASY" ? 0.75 : (difficulty === "MEDIUM" ? 0.5 : 0.25)));
+        penGoalieState = diveWrong ? (dir === "LEFT" ? "RIGHT" : "LEFT") : dir;
+    } else {
+        penGoalieState = dir;
+        penBallDir = (random(1) < 0.5) ? "LEFT" : "RIGHT";
+    }
+};
+
+// --- Joystick controls ---
+var drawJoystick = function() {
+    noStroke();
+    fill(0, 120, 200, 80);
+    ellipse(joystick.baseX, joystick.baseY, joystick.baseRadius * 2, joystick.baseRadius * 2);
+    stroke(255, 180); strokeWeight(2); noFill();
+    ellipse(joystick.baseX, joystick.baseY, joystick.baseRadius * 2, joystick.baseRadius * 2);
+    ellipse(joystick.baseX, joystick.baseY, joystick.baseRadius * 1.15, joystick.baseRadius * 1.15);
+    noStroke(); fill(255, 200);
+    textAlign(CENTER, CENTER); textSize(9);
+    text("JUMP", joystick.baseX, joystick.baseY - joystick.baseRadius + 8);
+    text("L", joystick.baseX - joystick.baseRadius + 10, joystick.baseY);
+    text("R", joystick.baseX + joystick.baseRadius - 10, joystick.baseY);
+    fill(joystick.active ? color(120, 180, 240) : color(60, 90, 140));
+    stroke(255); strokeWeight(2);
+    ellipse(joystick.knobX, joystick.knobY, joystick.knobRadius * 2, joystick.knobRadius * 2);
+    noStroke(); fill(255, 100);
+    ellipse(joystick.knobX - 4, joystick.knobY - 4, joystick.knobRadius * 0.8, joystick.knobRadius * 0.6);
+};
+
+var drawMobileControls = function() {
+    if (!mobileControlsEnabled) { return; }
+    drawJoystick();
+};
+
+var updateJoystick = function(mx, my) {
+    if (!joystick.active) { return; }
+    var dx = mx - joystick.baseX;
+    var dy = my - joystick.baseY;
+    var dist = sqrt(dx * dx + dy * dy);
+    if (dist > joystick.baseRadius) {
+        dx = dx / dist * joystick.baseRadius;
+        dy = dy / dist * joystick.baseRadius;
+    }
+    joystick.knobX = joystick.baseX + dx;
+    joystick.knobY = joystick.baseY + dy;
+    var deadzone = 9;
+    mobileBtn.left = dx < -deadzone;
+    mobileBtn.right = dx > deadzone;
+    mobileBtn.jump = dy < -deadzone * 1.6;
+};
+
+var handleJoystickPress = function(mx, my) {
+    if (mx > canvasWidth * 0.72) { return false; }
+    if (my < 260) { return false; }
+    joystick.baseX = mx;
+    joystick.baseY = my;
+    joystick.knobX = mx;
+    joystick.knobY = my;
+    joystick.active = true;
+    mobileBtn.left = false;
+    mobileBtn.right = false;
+    mobileBtn.jump = false;
+    return true;
+};
+
+var releaseJoystick = function() {
+    joystick.active = false;
+    joystick.knobX = joystick.baseX;
+    joystick.knobY = joystick.baseY;
+    mobileBtn.left = false;
+    mobileBtn.right = false;
+    mobileBtn.jump = false;
+};
+
+// --- Win / Loss routing ---
+var goToMatchEnd = function(isPenalties) {
+    matchIsPenalties = isPenalties;
+
+    var p1Won = (score1 > score2);
+    var isSolo = (gameMode === "SINGLE");
+    var isLocal = (gameMode === "LOCAL");
+
+    if (isSolo) {
+        simulateCurrentRound();
+        matchIsWin = p1Won;
+        if (matchIsWin) {
+            matchWinnerName = username;
+            matchWinnerCountry = selectedCountry;
+        } else {
+            matchWinnerName = tournamentTeams[aiCountry];
+            matchWinnerCountry = aiCountry;
+        }
+    } else if (isLocal) {
+        matchIsWin = true;
+        if (p1Won) {
+            matchWinnerName = tempName1;
+            matchWinnerCountry = selectedCountry;
+        } else {
+            matchWinnerName = tempName2;
+            matchWinnerCountry = p2Country;
+        }
+    } else {
+        matchIsWin = p1Won;
+        matchWinnerName = matchIsWin ? username : "AI";
+        matchWinnerCountry = matchIsWin ? selectedCountry : aiCountry;
+    }
+
+    matchScoreLine = score1 + " - " + score2;
+    if (isPenalties) { matchScoreLine += "  penalties"; }
+
+    confetti = [];
+    particles = [];
+    keys = {};
+    paused = false;
+    releaseJoystick();
+    gameState = "MATCH_END";
+};
+
+var evaluatePenaltyFrameResult = function() {
+    var goalScored = (penBallDir !== penGoalieState);
+    if (penaltyTurn === 1) {
+        if (penaltyIndex < 5) { p1PenScores[penaltyIndex] = goalScored ? 1 : -1; }
+        if (goalScored) { score1++; }
+        penaltyTurn = 2;
+    } else {
+        if (penaltyIndex < 5) { p2PenScores[penaltyIndex] = goalScored ? 1 : -1; }
+        if (goalScored) { score2++; }
+        penaltyIndex++; penaltyTurn = 1;
+    }
+    spawnBurst(200, 160, goalScored ? color(0, 255, 100) : color(255, 50, 50));
+    penBallState = "READY"; penGoalieState = "IDLE"; penBallDir = "NONE";
+
+    if (penaltyIndex >= 5 && penaltyTurn === 1 && score1 !== score2) {
+        goToMatchEnd(true);
+    }
+};
+
+// --- Physics ---
+var updatePlayer = function(p, controlType) {
+    var moveLeft = false, moveRight = false, jump = false;
+    var isLocal = (gameMode === "LOCAL");
+
+    if (controlType === "P1_INPUT") {
+        var p1WASD = isLocal || (p1ControlMode === "WASD");
+        if (p1WASD) {
+            moveLeft = keys[65] || mobileBtn.left;
+            moveRight = keys[68] || mobileBtn.right;
+            jump = keys[87] || mobileBtn.jump;
+        } else {
+            moveLeft = keys[37] || mobileBtn.left;
+            moveRight = keys[39] || mobileBtn.right;
+            jump = keys[38] || mobileBtn.jump;
+        }
+    } else if (controlType === "P2_INPUT") {
+        if (isLocal) {
+            moveLeft = keys[37]; moveRight = keys[39]; jump = keys[38];
+        } else if (p1ControlMode === "ARROWS") {
+            moveLeft = keys[65]; moveRight = keys[68]; jump = keys[87];
+        } else {
+            moveLeft = keys[37]; moveRight = keys[39]; jump = keys[38];
+        }
+    } else if (controlType === "AI") {
+        var aiCfg = getAiConfig();
+        if (ball.x > 180) {
+            if (ball.x < p.x - 15) { moveLeft = true; }
+            else if (ball.x > p.x + 15) { moveRight = true; }
+            if (ball.y < p.y - 25 && abs(ball.x - p.x) < 45 && p.isGrounded && random(1) < aiCfg.jumpChance) { jump = true; }
+        } else {
+            if (p.x < aiCfg.defendPos) { moveRight = true; }
+            else if (p.x > aiCfg.defendPos + 20) { moveLeft = true; }
+        }
+    }
+
+    if (moveLeft) { p.vx = -p.speed; }
+    else if (moveRight) { p.vx = p.speed; }
+    else { p.vx = 0; }
+
+    if (jump && p.isGrounded) { p.vy = p.jumpPower; p.isGrounded = false; }
+    p.x += p.vx; p.vy += gravity; p.y += p.vy;
+    if (p.y >= 350 - p.radius) { p.y = 350 - p.radius; p.vy = 0; p.isGrounded = true; }
+    p.x = constrain(p.x, p.radius, canvasWidth - p.radius);
+};
+
+var updateBall = function() {
+    ball.vy += gravity * 0.65; ball.x += ball.vx; ball.y += ball.vy;
+    ball.vx *= friction; ball.vy *= friction; ball.angle += ball.vx * 0.1;
+    if (ball.y >= 350 - ball.radius) { ball.y = 350 - ball.radius; ball.vy = -ball.vy * 0.72; }
+    if (ball.y <= ball.radius) { ball.y = ball.radius; ball.vy = -ball.vy * 0.72; }
+    if (ball.y < 350 - goalHeight) {
+        if (ball.x <= ball.radius) { ball.x = ball.radius; ball.vx = -ball.vx * 0.75; }
+        if (ball.x >= canvasWidth - ball.radius) { ball.x = canvasWidth - ball.radius; ball.vx = -ball.vx * 0.75; }
+    }
+};
+
+var resolveCollision = function(p) {
+    var dx = ball.x - p.x;
+    var dy = ball.y - p.y;
+    var distance = sqrt(dx * dx + dy * dy);
+    var minDist = p.radius + ball.radius;
+    if (distance < minDist) {
+        var angle = atan2(dy, dx);
+        ball.x = p.x + cos(angle) * minDist;
+        ball.y = p.y + sin(angle) * minDist;
+        ball.vx = cos(angle) * 8.5 + p.vx * 0.45;
+        ball.vy = sin(angle) * 8.5 + p.vy * 0.45;
+        if (ball.teamIndex !== p.teamIndex) {
+            ball.teamIndex = p.teamIndex;
+            spawnBurst(ball.x, ball.y, teamColors[p.teamIndex]);
+        } else {
+            spawnBurst(ball.x, ball.y, color(255, 230, 100));
+        }
+    }
+};
+
+var checkCollisions = function() {
+    resolveCollision(player1);
+    resolveCollision(player2);
+    var barY = 350 - goalHeight;
+    if (abs(ball.y - barY) <= ball.radius) {
+        if (ball.x <= goalWidth || ball.x >= canvasWidth - goalWidth) {
+            ball.vy = -abs(ball.vy) * 0.8 - 1;
+            ball.y = barY - ball.radius;
+            spawnBurst(ball.x, ball.y, color(255));
+        }
+    }
+};
+
+var checkGoals = function() {
+    if (ball.y > 350 - goalHeight) {
+        if (ball.x < goalWidth) {
+            score2++; spawnBurst(ball.x, ball.y, color(0, 150, 255)); initEntities();
+        }
+        if (ball.x > canvasWidth - goalWidth) {
+            score1++; spawnBurst(ball.x, ball.y, color(255, 50, 50)); initEntities();
+        }
+    }
+};
+
+var processPeriodEnd = function() {
+    if (currentPeriod === 1) {
+        if (halftimeEnabled) { gameState = "HALFTIME"; breakStart = millis(); }
+        else { currentPeriod = 2; timerStart = millis(); initEntities(); }
+    } else if (currentPeriod === 2) {
+        if (score1 === score2) {
+            currentPeriod = 3; gameState = "OVERTIME"; timerStart = millis(); initEntities();
+        } else {
+            goToMatchEnd(false);
+        }
+    } else if (currentPeriod === 3) {
+        if (score1 === score2) { gameState = "PENALTIES"; setupPenaltyData(); }
+        else {
+            goToMatchEnd(false);
+        }
+    }
+};
+
+// --- Stadium + Pitch ---
+var drawStadiumTop = function() {
+    var y, i;
+    for (y = 0; y < 88; y += 4) {
+        var t = y / 88;
+        var c = lerpColor(color(6, 10, 26), color(20, 36, 74), t);
+        noStroke(); fill(c);
+        rect(0, y, canvasWidth, 4);
+    }
+    for (i = 0; i < 340; i++) {
+        var cx = (i * 47 + 13) % 400;
+        var cy = 4 + ((i * 53 + 7) % 78);
+        var cIdx = i % 6;
+        var col;
+        if (cIdx === 0) { col = color(210, 70, 70); }
+        else if (cIdx === 1) { col = color(70, 110, 210); }
+        else if (cIdx === 2) { col = color(235, 200, 80); }
+        else if (cIdx === 3) { col = color(90, 190, 110); }
+        else if (cIdx === 4) { col = color(180, 100, 200); }
+        else { col = color(220, 220, 220); }
+        fill(red(col), green(col), blue(col), 150);
+        noStroke();
+        ellipse(cx, cy, 3.5, 3.5);
+    }
+    stroke(0, 0, 0, 70); strokeWeight(1);
+    for (i = 0; i < 8; i++) { line(i * 55 + 20, 0, i * 55 + 20, 86); }
+    for (i = 0; i < 4; i++) {
+        var a = 30 - i * 6;
+        noStroke(); fill(255, 250, 200, a);
+        ellipse(50, 6, 120 - i * 22, 70 - i * 14);
+        ellipse(350, 6, 120 - i * 22, 70 - i * 14);
+    }
+    fill(30, 42, 62); noStroke();
+    rect(0, 0, canvasWidth, 5);
+    fill(65, 85, 115);
+    rect(0, 4, canvasWidth, 2);
+    fill(32, 42, 62); noStroke();
+    rect(0, 84, canvasWidth, 12);
+    fill(52, 68, 92);
+    rect(0, 84, canvasWidth, 3);
+    for (i = 0; i < canvasWidth; i += 25) {
+        fill(72, 92, 122, 160);
+        rect(i, 87, 3, 9);
+    }
+};
+
+var drawPitch = function() {
+    var y, i, gx, gy;
+    drawStadiumTop();
+    for (y = 96; y < 350; y += 10) {
+        var inter = map(y, 96, 350, 0, 1);
+        stroke(lerpColor(color(20, 76, 32), color(46, 138, 60), inter));
+        strokeWeight(10);
+        line(0, y + 5, canvasWidth, y + 5);
+    }
+    for (i = 0; i < canvasWidth; i += 40) {
+        noStroke(); fill(255, 255, 255, 10);
+        rect(i, 96, 20, 254);
+    }
+    noStroke(); fill(255, 255, 200, 22);
+    triangle(20, 96, 0, 350, 180, 350);
+    triangle(380, 96, 220, 350, 400, 350);
+    stroke(255, 200); strokeWeight(2); noFill();
+    line(0, 96, canvasWidth, 96);
+    stroke(255, 220); strokeWeight(2); noFill();
+    line(200, 220, 200, 350);
+    ellipse(200, 285, 70, 35);
+    line(0, 350, canvasWidth, 350);
+    stroke(200, 200, 200, 120); strokeWeight(1);
+    for (gx = 0; gx < goalWidth; gx += 8) {
+        line(gx, 350 - goalHeight, gx, 350);
+        line(canvasWidth - gx, 350 - goalHeight, canvasWidth - gx, 350);
+    }
+    for (gy = 350 - goalHeight; gy < 350; gy += 10) {
+        line(0, gy, goalWidth, gy);
+        line(canvasWidth - goalWidth, gy, canvasWidth, gy);
+    }
+    stroke(0, 0, 0, 140); strokeWeight(7); noFill();
+    rect(2, 350 - goalHeight + 3, goalWidth, goalHeight);
+    rect(canvasWidth - goalWidth - 2, 350 - goalHeight + 3, goalWidth, goalHeight);
+    stroke(220); strokeWeight(5); noFill();
+    rect(0, 350 - goalHeight, goalWidth, goalHeight);
+    rect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
+    stroke(255); strokeWeight(2); noFill();
+    rect(0, 350 - goalHeight, goalWidth, goalHeight);
+    rect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
+};
+
+var drawPlayer = function(p) {
+    var lookDir = (p.x < ball.x) ? 1 : -1;
+    drawCountryball(p.teamIndex, p.x, p.y, p.radius, lookDir);
+    fill(0, 200); stroke(255); strokeWeight(1.5);
+    rect(p.x - 22, p.y - p.radius - 14, 44, 12, 3);
+    fill(255); textAlign(CENTER, CENTER); textSize(8);
+    text(p.name, p.x, p.y - p.radius - 8);
+};
+
+var drawBall = function() {
+    noStroke(); fill(0, 0, 0, 90);
+    ellipse(ball.x + 1, 350 - 2, ball.radius * 2.1, 6);
+    fill(0, 0, 0, 50);
+    ellipse(ball.x + 1, 350 - 2, ball.radius * 2.5, 9);
+    drawBallScanlines(ball.x, ball.y, ball.radius, ball.teamIndex);
+};
+
+var drawGameplayHUD = function() {
+    fill(0, 180); stroke(255, 100); strokeWeight(1.5); rect(60, 8, 280, 38, 8);
+    fill(255); textAlign(CENTER, CENTER); textSize(11);
+    text(player1.name + " (" + tournamentTeams[player1.teamIndex] + ") " + score1 + " - " + score2 + " " + player2.name, 200, 20);
+    var timeElapsed = floor((millis() - timerStart) / 1000);
+    var targetSecs = (currentPeriod === 3) ? extraTimeDuration : periodDuration;
+    var displaySecs = max(0, targetSecs - timeElapsed);
+    var pName = currentPeriod === 1 ? "1st Half" : (currentPeriod === 2 ? "2nd Half" : "Extra Time");
+    fill(255, 215, 0); textSize(10);
+    text(pName + " | " + displaySecs + "s", 200, 35);
+};
+
+// --- Mobile penalty arrows ---
+var drawMobilePenaltyArrows = function() {
+    if (!mobileControlsEnabled) { return; }
+    fill(30, 60, 100, 200); stroke(255, 200); strokeWeight(2);
+    rect(20, 330, 100, 60, 10);
+    fill(255);
+    triangle(45, 360, 75, 342, 75, 378);
+    fill(220); textAlign(CENTER, CENTER); textSize(11);
+    text("LEFT", 70, 375);
+    fill(30, 60, 100, 200); stroke(255, 200); strokeWeight(2);
+    rect(280, 330, 100, 60, 10);
+    fill(255);
+    triangle(355, 360, 325, 342, 325, 378);
+    fill(220); textSize(11);
+    text("RIGHT", 330, 375);
+};
+
+// --- Pause ---
+var pauseGame = function() {
+    if (paused) { return; }
+    if (gameState !== "PLAYING" && gameState !== "OVERTIME" &&
+        gameState !== "HALFTIME" && gameState !== "PENALTIES") { return; }
+    paused = true;
+    pauseStart = millis();
+    releaseJoystick();
+};
+
+var unpauseGame = function() {
+    if (!paused) { return; }
+    var delta = millis() - pauseStart;
+    if (gameState === "PLAYING" || gameState === "OVERTIME") { timerStart += delta; }
+    else if (gameState === "HALFTIME") { breakStart += delta; }
+    else if (gameState === "PENALTIES" && penBallState === "KICKED") { penTimer += delta; }
+    paused = false;
+};
+
+var copyMatches = function(arr) {
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+        var m = arr[i];
+        out.push({ t1: m.t1, t2: m.t2, s1: m.s1, s2: m.s2, winner: m.winner });
+    }
+    return out;
+};
+
+var captureSaveState = function() {
+    return {
+        gameMode: gameMode,
+        gameState: gameState,
+        score1: score1, score2: score2,
+        currentPeriod: currentPeriod,
+        elapsedMs: (gameState === "PLAYING" || gameState === "OVERTIME") ? (millis() - timerStart) : 0,
+        selectedCountry: selectedCountry, aiCountry: aiCountry,
+        tournamentRound: tournamentRound,
+        bracket: {
+            r1: copyMatches(bracket.r1), r2: copyMatches(bracket.r2),
+            r3: copyMatches(bracket.r3), r4: copyMatches(bracket.r4)
+        },
+        penaltyTurn: penaltyTurn, penaltyIndex: penaltyIndex,
+        p1PenScores: p1PenScores.slice(0), p2PenScores: p2PenScores.slice(0),
+        penBallState: penBallState, penGoalieState: penGoalieState, penBallDir: penBallDir,
+        player1: { x: player1.x, y: player1.y, vx: player1.vx, vy: player1.vy },
+        player2: { x: player2.x, y: player2.y, vx: player2.vx, vy: player2.vy },
+        ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, angle: ball.angle, teamIndex: ball.teamIndex }
+    };
+};
+
+var saveCurrentGame = function() { savedGame = captureSaveState(); };
+
+var restoreSavedGame = function() {
+    if (savedGame === null) { return; }
+    var s = savedGame;
+    gameMode = s.gameMode; gameState = s.gameState;
+    score1 = s.score1; score2 = s.score2;
+    currentPeriod = s.currentPeriod;
+    selectedCountry = s.selectedCountry; aiCountry = s.aiCountry;
+    tournamentRound = s.tournamentRound;
+    bracket.r1 = copyMatches(s.bracket.r1); bracket.r2 = copyMatches(s.bracket.r2);
+    bracket.r3 = copyMatches(s.bracket.r3); bracket.r4 = copyMatches(s.bracket.r4);
+    penaltyTurn = s.penaltyTurn; penaltyIndex = s.penaltyIndex;
+    p1PenScores = s.p1PenScores.slice(0); p2PenScores = s.p2PenScores.slice(0);
+    penBallState = s.penBallState; penGoalieState = s.penGoalieState; penBallDir = s.penBallDir;
+    initEntities();
+    player1.x = s.player1.x; player1.y = s.player1.y;
+    player1.vx = s.player1.vx; player1.vy = s.player1.vy;
+    player2.x = s.player2.x; player2.y = s.player2.y;
+    player2.vx = s.player2.vx; player2.vy = s.player2.vy;
+    ball.x = s.ball.x; ball.y = s.ball.y;
+    ball.vx = s.ball.vx; ball.vy = s.ball.vy;
+    ball.angle = s.ball.angle; ball.teamIndex = s.ball.teamIndex;
+    if (gameState === "PLAYING" || gameState === "OVERTIME") { timerStart = millis() - s.elapsedMs; }
+    else if (gameState === "PENALTIES") { penTimer = millis(); }
+    particles = []; paused = false; savedGame = null;
+};
+
+var abandonGame = function() {
+    paused = false; particles = []; releaseJoystick(); gameState = "TITLE";
+};
+
+var getPauseMenuButtons = function() {
+    return [
+        { id: "resume", y: 150, h: 38 },
+        { id: "save", y: 200, h: 38 },
+        { id: "menu", y: 250, h: 38 }
+    ];
+};
+
+var drawPauseMenu = function() {
+    fill(0, 210); noStroke(); rect(0, 0, canvasWidth, canvasHeight);
+    fill(255); textAlign(CENTER, CENTER); textSize(24);
+    text("PAUSED", 200, 90);
+    var btns = getPauseMenuButtons();
+    drawStyledButton(110, btns[0].y, 180, btns[0].h, "RESUME", color(40, 140, 60));
+    drawStyledButton(110, btns[1].y, 180, btns[1].h, "SAVE & MAIN MENU", color(200, 140, 30));
+    drawStyledButton(110, btns[2].y, 180, btns[2].h, "MAIN MENU", color(140, 50, 50));
+    fill(180); textSize(9); textAlign(CENTER, CENTER);
+    text("Save keeps score, timer, and tournament progress.", 200, 315);
+};
+
+var handlePauseMenuClick = function(mx, my) {
+    var btns = getPauseMenuButtons();
+    for (var i = 0; i < btns.length; i++) {
+        var b = btns[i];
+        if (mx > 110 && mx < 290 && my > b.y && my < b.y + b.h) {
+            if (b.id === "resume") { unpauseGame(); }
+            else if (b.id === "save") { saveCurrentGame(); abandonGame(); }
+            else if (b.id === "menu") { abandonGame(); }
+            return;
+        }
+    }
+};
+
+var drawPauseButton = function() {
+    fill(0, 180); stroke(255, 200); strokeWeight(2);
+    ellipse(370, 22, 28, 28);
+    fill(255); noStroke();
+    rect(364, 15, 4, 14, 1);
+    rect(372, 15, 4, 14, 1);
+};
+
+var pointOnPauseButton = function(mx, my) {
+    var dx = mx - 370; var dy = my - 22;
+    return (dx * dx + dy * dy) < 16 * 16;
+};
+
+// --- Country grid ---
+var drawCountryGrid = function(activeIdx) {
+    for (var i = 0; i < 16; i++) {
+        var col = i % 4;
+        var row = floor(i / 4);
+        var x = 20 + col * 92;
+        var y = 42 + row * 74;
+        var isSelected = (i === activeIdx);
+        fill(isSelected ? color(30, 80, 120) : color(20, 30, 45));
+        stroke(isSelected ? color(255, 215, 0) : color(255, 60));
+        strokeWeight(isSelected ? 3 : 1);
+        rect(x, y, 84, 66, 6);
+        drawFlag(i, x + 12, y + 8, 60, 34);
+        fill(isSelected ? color(0, 150, 255) : color(10, 15, 25));
+        stroke(isSelected ? color(255, 215, 0) : color(255, 40));
+        rect(x, y + 44, 84, 22, 6);
+        fill(255); textAlign(CENTER, CENTER); textSize(9);
+        text(tournamentTeams[i], x + 42, y + 55);
+    }
+};
+
+// --- Bracket ---
+var drawBracketMatchNode = function(x, y, w, h, match) {
+    fill(20, 30, 45, 230); stroke(255, 100); strokeWeight(1); rect(x, y, w, h, 3);
+    if (!match) { return; }
+    if (match.t1 !== null && match.t1 !== undefined) {
+        drawFlag(match.t1, x + 2, y + 3, 12, 8);
+        fill(match.winner === match.t1 ? color(0, 255, 120) : 255);
+        textSize(8); textAlign(LEFT, CENTER);
+        var name1 = (match.t1 === selectedCountry) ? username : tournamentTeams[match.t1];
+        text(name1 + (match.s1 !== null ? " " + match.s1 : ""), x + 16, y + 7);
+    }
+    stroke(255, 40); line(x + 2, y + h / 2, x + w - 2, y + h / 2);
+    if (match.t2 !== null && match.t2 !== undefined) {
+        drawFlag(match.t2, x + 2, y + h / 2 + 3, 12, 8);
+        fill(match.winner === match.t2 ? color(0, 255, 120) : 255);
+        textSize(8); textAlign(LEFT, CENTER);
+        var name2 = (match.t2 === selectedCountry) ? username : tournamentTeams[match.t2];
+        text(name2 + (match.s2 !== null ? " " + match.s2 : ""), x + 16, y + h / 2 + 7);
+    }
+};
+
+var drawBracketScreen = function() {
+    drawPitch();
+    fill(0, 215); rect(0, 0, canvasWidth, canvasHeight);
+    fill(255); textAlign(CENTER, CENTER); textSize(15);
+    text("WORLD CUP TOURNAMENT TREE", 200, 15);
+    var rNames = ["ROUND OF 16", "QUARTERFINALS", "SEMIFINALS", "WORLD CUP FINAL", "TOURNAMENT COMPLETE"];
+    fill(255, 215, 0); textSize(10);
+    text("Phase: " + rNames[min(4, tournamentRound - 1)], 200, 28);
+
+    var nw = 58, nh = 26;
+    var l1, r1, i;
+    var topY1, botY1, qfY1, topY2, botY2, qfY2;
+
+    stroke(255, 140); strokeWeight(1.2); noFill();
+    for (l1 = 0; l1 < 2; l1++) {
+        topY1 = 40 + (l1 * 2) * 62 + nh / 2;
+        botY1 = 40 + (l1 * 2 + 1) * 62 + nh / 2;
+        qfY1 = 40 + (l1 * 2 + 0.5) * 62 + nh / 2;
+        line(10 + nw, topY1, 75, topY1);
+        line(10 + nw, botY1, 75, botY1);
+        line(75, topY1, 75, botY1);
+        line(75, qfY1, 80, qfY1);
+    }
+    var qfL1 = 40 + 0.5 * 62 + nh / 2;
+    var qfL2 = 40 + 2.5 * 62 + nh / 2;
+    var sfL = 40 + 1.5 * 62 + nh / 2;
+    line(80 + nw, qfL1, 145, qfL1);
+    line(80 + nw, qfL2, 145, qfL2);
+    line(145, qfL1, 145, qfL2);
+    line(145, sfL, 150, sfL);
+
+    for (r1 = 0; r1 < 2; r1++) {
+        topY2 = 40 + (r1 * 2) * 62 + nh / 2;
+        botY2 = 40 + (r1 * 2 + 1) * 62 + nh / 2;
+        qfY2 = 40 + (r1 * 2 + 0.5) * 62 + nh / 2;
+        line(390 - nw, topY2, 325, topY2);
+        line(390 - nw, botY2, 325, botY2);
+        line(325, topY2, 325, botY2);
+        line(325, qfY2, 320, qfY2);
+    }
+    line(320 - nw, qfL1, 255, qfL1);
+    line(320 - nw, qfL2, 255, qfL2);
+    line(255, qfL1, 255, qfL2);
+    line(255, sfL, 250, sfL);
+
+    line(150 + nw, sfL, 200, sfL);
+    line(250 - nw, sfL, 200, sfL);
+    line(200, sfL, 200, 275);
+
+    for (i = 0; i < 4; i++) {
+        drawBracketMatchNode(10, 40 + i * 62, nw, nh, bracket.r1[i]);
+        drawBracketMatchNode(390 - nw, 40 + i * 62, nw, nh, bracket.r1[i + 4]);
+    }
+    drawBracketMatchNode(80, 40 + 0.5 * 62, nw, nh, bracket.r2[0]);
+    drawBracketMatchNode(80, 40 + 2.5 * 62, nw, nh, bracket.r2[1]);
+    drawBracketMatchNode(320 - nw, 40 + 0.5 * 62, nw, nh, bracket.r2[2]);
+    drawBracketMatchNode(320 - nw, 40 + 2.5 * 62, nw, nh, bracket.r2[3]);
+    drawBracketMatchNode(150, 40 + 1.5 * 62, nw, nh, bracket.r3[0]);
+    drawBracketMatchNode(250 - nw, 40 + 1.5 * 62, nw, nh, bracket.r3[1]);
+
+    fill(255, 215, 0); textSize(9); textAlign(CENTER, CENTER);
+    text("CHAMPIONSHIP FINAL", 200, 265);
+    drawBracketMatchNode(160, 275, 80, nh, bracket.r4[0]);
+
+    var playerWonTournament = (bracket.r4[0] && bracket.r4[0].winner === selectedCountry);
+    var playerEliminated = isPlayerEliminated();
+
+    if (playerWonTournament) {
+        fill(0, 255, 120); textAlign(CENTER, CENTER); textSize(12);
+        text("CONGRATULATIONS " + username.toUpperCase() + "! CHAMPION!", 200, 340);
+        drawStyledButton(110, 358, 180, 32, "MAIN MENU", color(40, 140, 60));
+    } else if (playerEliminated) {
+        fill(255, 90, 90); textAlign(CENTER, CENTER); textSize(11);
+        text(username + " ELIMINATED", 200, 336);
+        if (tournamentRound <= 4) {
+            drawStyledButton(40, 355, 150, 32, "SIMULATE NEXT", color(180, 100, 40));
+            drawStyledButton(210, 355, 150, 32, "MAIN MENU", color(140, 50, 50));
+        } else {
+            drawStyledButton(110, 355, 180, 32, "MAIN MENU", color(140, 50, 50));
+        }
+    } else {
+        drawStyledButton(110, 355, 180, 35, "PLAY NEXT MATCH", color(40, 140, 60));
+    }
+};
+
+// --- Achievement badge ---
+var drawAchievementBadge = function(y, title, desc, unlocked) {
+    fill(unlocked ? color(0, 200, 100, 50) : color(50, 50, 50, 50));
+    stroke(unlocked ? color(0, 255, 100) : color(100));
+    strokeWeight(1); rect(50, y, 300, 48, 5);
+    fill(unlocked ? color(0, 255, 120) : color(150));
+    textAlign(LEFT, CENTER); textSize(11);
+    text((unlocked ? "[UNLOCKED] " : "[LOCKED] ") + title, 58, y + 14);
+    fill(200); textSize(9);
+    text(desc, 58, y + 32);
+};
+
+// --- On-canvas keyboard ---
+var keyboardRowN = "1234567890";
+var keyboardRow1 = "qwertyuiop";
+var keyboardRow2 = "asdfghjkl";
+var keyboardRow3 = "zxcvbnm";
+
+var drawKeyCap = function(x, y, w, h, label, bgClr, fgClr) {
+    if (bgClr === undefined) { bgClr = color(60, 70, 90); }
+    if (fgClr === undefined) { fgClr = color(255); }
+    fill(bgClr); stroke(255, 180); strokeWeight(1);
+    rect(x, y, w, h, 4);
+    fill(fgClr); textAlign(CENTER, CENTER);
+    textSize(label.length > 1 ? 8 : 13);
+    text(label, x + w / 2, y + h / 2);
+};
+
+var drawKeyboard = function() {
+    if (!keyboard.visible) { return; }
+    fill(0, 220); noStroke(); rect(0, 235, canvasWidth, 165);
+    fill(255, 215, 0); textAlign(CENTER, CENTER); textSize(10);
+    var caseTag = keyboard.shift ? "  [ABC]" : "  [abc]";
+    var header = "EDITING";
+    if (keyboard.target === "USERNAME") { header = "EDITING USERNAME"; }
+    else if (keyboard.target === "PASSWORD") { header = "EDITING PASSWORD"; }
+    else if (keyboard.target === "P1NAME") { header = "PLAYER 1 WASD - ENTER NAME"; }
+    else if (keyboard.target === "P2NAME") { header = "PLAYER 2 ARROWS - ENTER NAME"; }
+    text(header + caseTag, 200, 240);
+
+    var kw = keyboard.keyW;
+    var kh = keyboard.keyH;
+    var gap = keyboard.gap;
+    var rowGap = keyboard.rowGap;
+    var baseY = keyboard.baseY;
+    var i, kx, label;
+
+    for (i = 0; i < keyboardRowN.length; i++) {
+        kx = 6 + i * (kw + gap);
+        drawKeyCap(kx, baseY, kw, kh, keyboardRowN.charAt(i), color(50, 60, 95), color(255));
+    }
+    stroke(255, 70); strokeWeight(1);
+    line(20, baseY + kh + 1, 380, baseY + kh + 1);
+
+    var r1y = baseY + kh + rowGap;
+    for (i = 0; i < keyboardRow1.length; i++) {
+        label = keyboardRow1.charAt(i);
+        if (keyboard.shift) { label = toUpperCh(label); }
+        kx = 6 + i * (kw + gap);
+        drawKeyCap(kx, r1y, kw, kh, label);
+    }
+    var r2w = keyboardRow2.length * kw + (keyboardRow2.length - 1) * gap;
+    var r2x = (canvasWidth - r2w) / 2;
+    var r2y = r1y + kh + rowGap;
+    for (i = 0; i < keyboardRow2.length; i++) {
+        label = keyboardRow2.charAt(i);
+        if (keyboard.shift) { label = toUpperCh(label); }
+        kx = r2x + i * (kw + gap);
+        drawKeyCap(kx, r2y, kw, kh, label);
+    }
+    var r3w = (keyboardRow3.length + 2) * kw + (keyboardRow3.length + 1) * gap;
+    var r3x = (canvasWidth - r3w) / 2;
+    var r3y = r2y + kh + rowGap;
+    drawKeyCap(r3x, r3y, kw, kh, "SHIFT",
+               keyboard.shift ? color(200, 140, 30) : color(80, 80, 100), color(255));
+    for (i = 0; i < keyboardRow3.length; i++) {
+        label = keyboardRow3.charAt(i);
+        if (keyboard.shift) { label = toUpperCh(label); }
+        kx = r3x + (i + 1) * (kw + gap);
+        drawKeyCap(kx, r3y, kw, kh, label);
+    }
+    var bsX = r3x + (keyboardRow3.length + 1) * (kw + gap);
+    drawKeyCap(bsX, r3y, kw, kh, "DEL", color(120, 60, 60), color(255));
+
+    var r4y = r3y + kh + rowGap;
+    drawKeyCap(6, r4y, 260, kh, "SPACE", color(50, 55, 75), color(200));
+    drawKeyCap(272, r4y, 122, kh, "DONE", color(40, 140, 60), color(255));
+};
+
+var appendChar = function(ch) {
+    var out = ch;
+    if (keyboard.shift) { out = toUpperCh(ch); keyboard.shift = false; }
+    else { out = toLowerCh(ch); }
+    if (keyboard.target === "USERNAME") { if (username.length < 12) { username += out; } }
+    else if (keyboard.target === "PASSWORD") { if (currentPassword.length < 20) { currentPassword += out; } }
+    else if (keyboard.target === "P1NAME") { if (tempName1.length < 12) { tempName1 += out; } }
+    else if (keyboard.target === "P2NAME") { if (tempName2.length < 12) { tempName2 += out; } }
+};
+
+var backspaceChar = function() {
+    if (keyboard.target === "USERNAME") {
+        if (username.length > 0) { username = username.substring(0, username.length - 1); }
+    } else if (keyboard.target === "PASSWORD") {
+        if (currentPassword.length > 0) { currentPassword = currentPassword.substring(0, currentPassword.length - 1); }
+    } else if (keyboard.target === "P1NAME") {
+        if (tempName1.length > 0) { tempName1 = tempName1.substring(0, tempName1.length - 1); }
+    } else if (keyboard.target === "P2NAME") {
+        if (tempName2.length > 0) { tempName2 = tempName2.substring(0, tempName2.length - 1); }
+    }
+};
+
+var commitKeyboardInput = function() {
+    if (keyboard.target === "PASSWORD") {
+        if (currentPassword.length > 0) { checkPasswordMatch(currentPassword); }
+    } else if (keyboard.target === "USERNAME") {
+        if (username.trim().length === 0) { username = "Player"; }
+    } else if (keyboard.target === "P1NAME") {
+        if (tempName1.trim().length === 0) { tempName1 = "Player 1"; }
+        gameState = "P1_COUNTRY";
+    } else if (keyboard.target === "P2NAME") {
+        if (tempName2.trim().length === 0) { tempName2 = "Player 2"; }
+        gameState = "P2_COUNTRY";
+    }
+};
+
+var closeKeyboard = function() {
+    keyboard.visible = false;
+    keyboard.target = "NONE";
+    keyboard.shift = false;
+    activeInputMode = "NONE";
+};
+
+var openKeyboardFor = function(target) {
+    keyboard.visible = true;
+    keyboard.target = target;
+    keyboard.shift = false;
+    activeInputMode = target;
+};
+
+var handleKeyboardClick = function(mx, my) {
+    if (!keyboard.visible) { return false; }
+    var kw = keyboard.keyW;
+    var kh = keyboard.keyH;
+    var gap = keyboard.gap;
+    var rowGap = keyboard.rowGap;
+    var baseY = keyboard.baseY;
+    var i, kx;
+
+    if (my >= baseY && my <= baseY + kh) {
+        for (i = 0; i < keyboardRowN.length; i++) {
+            kx = 6 + i * (kw + gap);
+            if (mx >= kx && mx <= kx + kw) { appendChar(keyboardRowN.charAt(i)); return true; }
+        }
+        return true;
+    }
+    var r1y = baseY + kh + rowGap;
+    if (my >= r1y && my <= r1y + kh) {
+        for (i = 0; i < keyboardRow1.length; i++) {
+            kx = 6 + i * (kw + gap);
+            if (mx >= kx && mx <= kx + kw) { appendChar(keyboardRow1.charAt(i)); return true; }
+        }
+        return true;
+    }
+    var r2w = keyboardRow2.length * kw + (keyboardRow2.length - 1) * gap;
+    var r2x = (canvasWidth - r2w) / 2;
+    var r2y = r1y + kh + rowGap;
+    if (my >= r2y && my <= r2y + kh) {
+        for (i = 0; i < keyboardRow2.length; i++) {
+            kx = r2x + i * (kw + gap);
+            if (mx >= kx && mx <= kx + kw) { appendChar(keyboardRow2.charAt(i)); return true; }
+        }
+        return true;
+    }
+    var r3w = (keyboardRow3.length + 2) * kw + (keyboardRow3.length + 1) * gap;
+    var r3x = (canvasWidth - r3w) / 2;
+    var r3y = r2y + kh + rowGap;
+    if (my >= r3y && my <= r3y + kh) {
+        if (mx >= r3x && mx <= r3x + kw) { keyboard.shift = !keyboard.shift; return true; }
+        for (i = 0; i < keyboardRow3.length; i++) {
+            kx = r3x + (i + 1) * (kw + gap);
+            if (mx >= kx && mx <= kx + kw) { appendChar(keyboardRow3.charAt(i)); return true; }
+        }
+        var bsX = r3x + (keyboardRow3.length + 1) * (kw + gap);
+        if (mx >= bsX && mx <= bsX + kw) { backspaceChar(); return true; }
+        return true;
+    }
+    var r4y = r3y + kh + rowGap;
+    if (my >= r4y && my <= r4y + kh) {
+        if (mx >= 6 && mx <= 266) { appendChar(" "); return true; }
+        if (mx >= 272 && mx <= 394) {
+            commitKeyboardInput();
+            closeKeyboard();
+            return true;
+        }
+        return true;
+    }
+    return false;
+};
+
+// --- Title button layout ---
+var getTitleButtonLayout = function() {
+    var y = 90;
+    var buttons = [];
+    if (savedGame !== null) { buttons.push({ id: "continue", y: y, h: 35 }); y += 45; }
+    buttons.push({ id: "single", y: y, h: 35 }); y += 45;
+    buttons.push({ id: "local", y: y, h: 35 }); y += 45;
+    buttons.push({ id: "penalty", y: y, h: 35 }); y += 45;
+    buttons.push({ id: "settings", y: y, h: 35 });
+    return buttons;
+};
+
+// --- Screens ---
+var drawTitleScreen = function() {
+    drawPitch(); fill(0, 170); rect(0, 0, canvasWidth, canvasHeight);
+    fill(255); textAlign(CENTER, CENTER); textSize(24);
+    text("COUNTRYBALL SOCCER 2026", 200, 45);
+    textSize(11); fill(255, 215, 0);
+    text("WELCOME, " + username.toUpperCase(), 200, 68);
+
+    var btns = getTitleButtonLayout();
+    for (var i = 0; i < btns.length; i++) {
+        var b = btns[i];
+        if (b.id === "continue") { drawStyledButton(110, b.y, 180, b.h, "CONTINUE", color(60, 180, 90)); }
+        else if (b.id === "single") { drawStyledButton(110, b.y, 180, b.h, "SINGLE PLAYER", color(40, 140, 60)); }
+        else if (b.id === "local") {
+            if (mobileControlsEnabled) { drawDisabledButton(110, b.y, 180, b.h, "LOCAL 2-PLAYER N/A"); }
+            else { drawStyledButton(110, b.y, 180, b.h, "LOCAL 2-PLAYER", color(40, 100, 180)); }
+        }
+        else if (b.id === "penalty") { drawStyledButton(110, b.y, 180, b.h, "PENALTY SHOOTOUT", color(180, 100, 40)); }
+        else if (b.id === "settings") { drawStyledButton(110, b.y, 180, b.h, "SETTINGS & ACCOUNTS", color(100, 100, 110)); }
+    }
+
+    if (savedGame !== null) {
+        fill(180, 255, 180); textSize(9); textAlign(CENTER, CENTER);
+        text("Saved: " + savedGame.gameMode + " | " + savedGame.score1 + "-" + savedGame.score2, 200, 325);
+    }
+
+    fill(200, 255, 200); textSize(9);
+    text("Polandball Countryball Graphics | Password & Savings Active", 200, 380);
+};
+
+var drawDifficultyScreen = function() {
+    drawPitch(); fill(0, 180); rect(0, 0, canvasWidth, canvasHeight);
+    fill(255); textAlign(CENTER, CENTER); textSize(18);
+    text("SELECT AI DIFFICULTY", 200, 50);
+    var easyClr = (difficulty === "EASY") ? color(40, 180, 60) : color(50, 70, 60);
+    var medClr = (difficulty === "MEDIUM") ? color(200, 140, 20) : color(70, 70, 50);
+    var hardClr = (difficulty === "HARD") ? color(200, 40, 40) : color(70, 50, 50);
+    drawStyledButton(110, 100, 180, 38, "EASY AI", easyClr);
+    drawStyledButton(110, 150, 180, 38, "MEDIUM AI", medClr);
+    drawStyledButton(110, 200, 180, 38, "HARD AI", hardClr);
+    drawStyledButton(110, 280, 180, 35, "CONTINUE", color(40, 140, 60));
+};
+
+var drawSettingsScreen = function() {
+    drawPitch(); fill(0, 190); rect(0, 0, canvasWidth, canvasHeight);
+    fill(255); textAlign(CENTER, CENTER); textSize(16);
+    text("SETTINGS & ACCOUNTS", 200, 22);
+
+    var nameLabel = "USER: " + username + (activeInputMode === "USERNAME" ? "_" : "");
+    var passLabel = "PASS: " + (currentPassword.length > 0 ? "*****" : "[CLICK]") + (activeInputMode === "PASSWORD" ? "_" : "");
+
+    drawStyledButton(40, 36, 320, 26, nameLabel, activeInputMode === "USERNAME" ? color(200, 140, 30) : color(50, 90, 140));
+    drawStyledButton(40, 66, 320, 26, passLabel, activeInputMode === "PASSWORD" ? color(200, 140, 30) : color(50, 90, 140));
+    drawStyledButton(40, 96, 100, 26, "HT: " + (halftimeEnabled ? "ON" : "OFF"), color(50, 90, 140));
+    drawStyledButton(150, 96, 100, 26, "CTRL: " + p1ControlMode, color(50, 90, 140));
+    drawStyledButton(260, 96, 100, 26, mobileControlsEnabled ? "MOB: ON" : "MOB: OFF",
+                     mobileControlsEnabled ? color(60, 140, 80) : color(50, 90, 140));
+
+    if (keyboard.visible) { drawKeyboard(); return; }
+
+    fill(20, 30, 45, 220); stroke(255, 100); strokeWeight(1.5);
+    rect(40, 130, 320, 195, 8);
+    fill(255, 215, 0); textSize(12); textAlign(CENTER, CENTER);
+    text("ACHIEVEMENTS " + username, 200, 145);
+
+    drawAchievementBadge(165, "Brazil award", "Win by 6+ goals (e.g. 7-1)", achievements.brazilAward);
+    drawAchievementBadge(218, "Victory", "Win the World Cup", achievements.victory);
+    drawAchievementBadge(271, "Champion", "Win Cup on Easy, Medium & Hard", achievements.champion);
+
+    drawStyledButton(110, 340, 180, 34, "BACK TO MAIN MENU", color(180, 60, 60));
+};
+
+var drawNameEntryScreen = function(target) {
+    drawPitch(); fill(0, 190); rect(0, 0, canvasWidth, canvasHeight);
+    var accent = (target === "P1NAME") ? color(60, 130, 200) : color(210, 130, 40);
+    fill(accent); noStroke(); rect(0, 0, canvasWidth, 30);
+    fill(255); textAlign(CENTER, CENTER); textSize(13);
+    var header = (target === "P1NAME") ? "PLAYER 1 WASD - ENTER NAME" : "PLAYER 2 ARROWS - ENTER NAME";
+    text(header, 200, 15);
+
+    fill(20, 30, 45, 240); stroke(255, 200); strokeWeight(2);
+    rect(40, 60, 320, 50, 8);
+    fill(255); textAlign(LEFT, CENTER); textSize(20);
+    var nm = (target === "P1NAME") ? tempName1 : tempName2;
+    var displayName;
+    if (nm.length === 0) { displayName = "_"; } else { displayName = nm + "_"; }
+    text(displayName, 60, 85);
+
+    fill(200); textSize(10); textAlign(CENTER, CENTER);
+    text("Type or tap the keyboard. Press DONE when finished.", 200, 130);
+
+    drawKeyboard();
+};
+
+var drawCountryPickScreen = function(target) {
+    drawPitch(); fill(0, 180); rect(0, 0, canvasWidth, canvasHeight);
+    var accent = (target === "P1_COUNTRY") ? color(60, 130, 200) : color(210, 130, 40);
+    fill(accent); noStroke(); rect(0, 0, canvasWidth, 30);
+    fill(255); textAlign(CENTER, CENTER); textSize(13);
+    var header = (target === "P1_COUNTRY") ? "PLAYER 1 WASD - PICK YOUR COUNTRY" : "PLAYER 2 ARROWS - PICK YOUR COUNTRY";
+    text(header, 200, 15);
+    drawCountryGrid(-1);
+};
+
+var drawMatchStartNotification = function() {
+    drawPitch(); fill(0, 190); rect(0, 0, canvasWidth, canvasHeight);
+    fill(255); textAlign(CENTER, CENTER); textSize(18);
+    text("MATCH READY!", 200, 50);
+
+    var p1C = selectedCountry;
+    var p2C = (gameMode === "LOCAL") ? p2Country : aiCountry;
+    var n1 = (gameMode === "LOCAL") ? tempName1 : username;
+    var n2 = (gameMode === "LOCAL") ? tempName2 : tournamentTeams[aiCountry];
+
+    drawCountryball(p1C, 120, 120, 32, 1);
+    drawCountryball(p2C, 280, 120, 32, -1);
+    fill(255, 215, 0); textSize(13);
+    text(n1 + " " + tournamentTeams[p1C], 110, 172);
+    text(n2 + " " + tournamentTeams[p2C], 290, 172);
+    fill(255); textSize(12);
+    text("VS", 200, 130);
+    fill(200); textSize(11);
+    var modeStr;
+    if (gameMode === "LOCAL") {
+        modeStr = "Local 2-Player";
+    } else {
+        modeStr = "Single Player " + difficulty;
+    }
+    text("Mode: " + modeStr, 200, 205);
+    drawStyledButton(110, 260, 180, 40, "START MATCH!", color(40, 160, 60));
+};
+
+// --- Match end screen ---
+var drawMatchEndScreen = function() {
+    if (matchIsWin) {
+        for (var y = 0; y < canvasHeight; y += 4) {
+            var t = y / canvasHeight;
+            var r = lerp(20, 90, t);
+            var g = lerp(30, 60, t);
+            var b = lerp(60, 130, t);
+            noStroke(); fill(r, g, b);
+            rect(0, y, canvasWidth, 4);
+        }
+        pushMatrix();
+        translate(200, 155);
+        rotate(millis() * 0.0004);
+        for (var i = 0; i < 14; i++) {
+            rotate(TWO_PI / 14);
+            noStroke(); fill(255, 230, 120, 30);
+            triangle(0, 0, 500, 22, 500, -22);
+        }
+        popMatrix();
+        for (var g2 = 0; g2 < 6; g2++) {
+            noStroke(); fill(255, 230, 130, 30 - g2 * 4);
+            ellipse(200, 155, 150 + g2 * 28, 150 + g2 * 28);
+        }
+    } else {
+        for (var y2 = 0; y2 < canvasHeight; y2 += 4) {
+            var t2 = y2 / canvasHeight;
+            var r2 = lerp(15, 45, t2);
+            var g3 = lerp(5, 12, t2);
+            var b2 = lerp(15, 25, t2);
+            noStroke(); fill(r2, g3, b2);
+            rect(0, y2, canvasWidth, 4);
+        }
+        for (var v = 0; v < 10; v++) {
+            noStroke(); fill(120, 20, 20, 10);
+            rect(v * 16, v * 16, canvasWidth - v * 32, canvasHeight - v * 32, 60);
+        }
+    }
+
+    if (matchIsWin) {
+        if (frameCount % 3 === 0) { spawnConfetti(); }
+        updateAndDrawConfetti();
+    }
+
+    var bounce = sin(millis() * 0.006) * 6;
+    if (matchIsWin) {
+        for (var gg = 0; gg < 5; gg++) {
+            noStroke(); fill(255, 230, 120, 40 - gg * 6);
+            ellipse(200, 150 + bounce, 130 + gg * 22, 130 + gg * 22);
+        }
+        drawCountryball(matchWinnerCountry, 200, 150 + bounce, 52, 1);
+    } else {
+        drawCountryball(matchWinnerCountry, 200, 148, 42, -1);
+    }
+
+    textAlign(CENTER, CENTER);
+    if (matchIsWin) {
+        var winText = matchWinnerName.toUpperCase() + " WINS!!!";
+        var fs = 34;
+        if (winText.length > 20) {
+            fs = 20;
+        } else if (winText.length > 16) {
+            fs = 24;
+        } else if (winText.length > 12) {
+            fs = 28;
+        }
+
+        textSize(fs);
+        fill(0, 0, 0, 200); text(winText, 202, 258);
+        fill(255, 190, 50); text(winText, 200, 254);
+        fill(255, 250, 200); text(winText, 200, 250);
+    } else {
+        textSize(44);
+        fill(0, 0, 0, 220); text("YOU LOST!!!", 203, 258);
+        fill(140, 10, 10); text("YOU LOST!!!", 200, 254);
+        fill(255, 70, 70); text("YOU LOST!!!", 200, 251);
+    }
+
+    fill(255, 230, 200);
+    textSize(16);
+    text(matchScoreLine, 200, 300);
+
+    drawStyledButton(110, 335, 180, 42, "CONTINUE", color(40, 140, 60));
+};
+
+// --- Loops ---
+var runGameLoop = function() {
+    if (!paused) {
+        var periodMax = (currentPeriod === 3) ? extraTimeDuration : periodDuration;
+        if (floor((millis() - timerStart) / 1000) >= periodMax) {
+            processPeriodEnd();
+            return;
+        }
+        var p1Ctrl = "P1_INPUT";
+        var p2Ctrl;
+        if (gameMode === "SINGLE") { p2Ctrl = "AI"; }
+        else { p2Ctrl = "P2_INPUT"; }
+        updatePlayer(player1, p1Ctrl);
+        updatePlayer(player2, p2Ctrl);
+        updateBall();
+        checkCollisions();
+        checkGoals();
+    }
+
+    drawPitch();
+    drawPlayer(player1);
+    drawPlayer(player2);
+    drawBall();
+    updateAndDrawParticles();
+    drawGameplayHUD();
+    drawMobileControls();
+    drawPauseButton();
+
+    if (paused) { drawPauseMenu(); }
+};
+
+var runHalftimeLoop = function() {
+    if (!paused) {
+        var elapsed = floor((millis() - breakStart) / 1000);
+        var remaining = breakDuration - elapsed;
+        if (remaining <= 0) {
+            currentPeriod = 2; timerStart = millis(); initEntities(); gameState = "PLAYING";
+            return;
+        }
+    }
+    drawPitch();
+    drawPlayer(player1);
+    drawPlayer(player2);
+    fill(0, 160); rect(0, 0, canvasWidth, canvasHeight);
+    var elapsed2 = floor((millis() - breakStart) / 1000);
+    var remaining2 = breakDuration - elapsed2;
+    fill(255); textAlign(CENTER, CENTER); textSize(22);
+    text("HALF TIME", 200, 150);
+    fill(255, 215, 0); textSize(14);
+    text("Resuming 2nd Half in: " + max(0, remaining2) + "s", 200, 190);
+    drawPauseButton();
+    if (paused) { drawPauseMenu(); }
+};
+
+// --- Penalty stadium ---
+var drawPenaltyBackground = function() {
+    var y, i;
+    for (y = 0; y < 130; y += 3) {
+        var t = y / 130;
+        var c = lerpColor(color(4, 6, 20), color(18, 32, 68), t);
+        noStroke(); fill(c);
+        rect(0, y, canvasWidth, 3);
+    }
+    for (i = 0; i < 260; i++) {
+        var cx = (i * 61 + 11) % 400;
+        var cy = 6 + ((i * 43 + 5) % 118);
+        var cIdx = i % 5;
+        var col;
+        if (cIdx === 0) { col = color(200, 60, 60); }
+        else if (cIdx === 1) { col = color(60, 90, 200); }
+        else if (cIdx === 2) { col = color(230, 200, 80); }
+        else if (cIdx === 3) { col = color(90, 180, 110); }
+        else { col = color(220, 220, 220); }
+        fill(red(col), green(col), blue(col), 130);
+        noStroke(); ellipse(cx, cy, 3, 3);
+    }
+    for (i = 0; i < 5; i++) {
+        var a = 40 - i * 7;
+        noStroke(); fill(255, 250, 200, a);
+        ellipse(60, 10, 140 - i * 26, 90 - i * 18);
+        ellipse(340, 10, 140 - i * 26, 90 - i * 18);
+    }
+    fill(20, 28, 48); noStroke(); rect(0, 0, canvasWidth, 6);
+    fill(60, 80, 110); rect(0, 5, canvasWidth, 2);
+    fill(28, 36, 55); noStroke(); rect(0, 128, canvasWidth, 10);
+    fill(48, 62, 88); rect(0, 128, canvasWidth, 2);
+    for (y = 138; y < 260; y += 8) {
+        var t2 = map(y, 138, 260, 0, 1);
+        stroke(lerpColor(color(24, 82, 34), color(46, 138, 58), t2));
+        strokeWeight(8); line(0, y + 4, canvasWidth, y + 4);
+    }
+    for (i = 0; i < canvasWidth; i += 40) {
+        noStroke(); fill(255, 255, 255, 12);
+        rect(i, 138, 20, 122);
+    }
+    noStroke(); fill(255, 255, 200, 18);
+    triangle(0, 138, 400, 138, 200, 260);
+};
+
+var drawGoalNet = function() {
+    var gx = 130, gy = 100, gw = 140, gh = 80;
+    fill(10, 14, 22, 200); noStroke();
+    rect(gx, gy, gw, gh);
+    stroke(220, 220, 220, 100); strokeWeight(1);
+    for (var i = gx; i <= gx + gw; i += 8) { line(i, gy, i, gy + gh); }
+    for (var j = gy; j <= gy + gh; j += 8) { line(gx, j, gx + gw, j); }
+    stroke(220, 220, 220, 50);
+    for (var k = -gh; k < gw; k += 16) {
+        var x1 = gx + max(0, k);
+        var y1 = gy + max(0, -k);
+        var x2 = gx + min(gw, k + gh);
+        var y2 = gy + min(gh, gh + k);
+        if (x1 <= gx + gw && y1 <= gy + gh) { line(x1, y1, x2, y2); }
+    }
+    stroke(0, 0, 0, 160); strokeWeight(8); noFill();
+    rect(gx + 2, gy + 3, gw, gh);
+    stroke(240); strokeWeight(6); rect(gx, gy, gw, gh);
+    stroke(255); strokeWeight(2); rect(gx, gy, gw, gh);
+};
+
+var runPenaltyLoop = function() {
+    if (!paused) {
+        if (penBallState === "KICKED") {
+            var progress = min(1, (millis() - penTimer) / 600);
+            if (progress >= 1) { evaluatePenaltyFrameResult(); }
+        }
+    }
+    drawPenaltyBackground();
+    fill(0, 180); stroke(255, 100); strokeWeight(1.5);
+    rect(80, 6, 240, 26, 8);
+    fill(255); textAlign(CENTER, CENTER); textSize(13);
+    text("PENALTY SHOOTOUT", 200, 19);
+    drawFlag(selectedCountry, 20, 10, 30, 18);
+    drawFlag(aiCountry, 350, 10, 30, 18);
+
+    for (var i = 0; i < 5; i++) {
+        fill(p1PenScores[i] === 1 ? color(0, 255, 100) : (p1PenScores[i] === -1 ? color(255, 50, 50) : color(100)));
+        ellipse(60 + i * 14, 46, 10, 10);
+        fill(p2PenScores[i] === 1 ? color(0, 255, 100) : (p2PenScores[i] === -1 ? color(255, 50, 50) : color(100)));
+        ellipse(340 - i * 14, 46, 10, 10);
+    }
+    drawGoalNet();
+    var goalieTeam = (penaltyTurn === 1) ? aiCountry : selectedCountry;
+    var goalieLook = (penaltyTurn === 1) ? -1 : 1;
+    var goalieX = 200;
+    if (penGoalieState === "LEFT") { goalieX = 150; }
+    else if (penGoalieState === "RIGHT") { goalieX = 250; }
+    drawCountryball(goalieTeam, goalieX, 155, 18, goalieLook);
+
+    var bX = 200, bY = 240;
+    if (penBallState === "KICKED") {
+        var progress2 = min(1, (millis() - penTimer) / 600);
+        if (penBallDir === "LEFT") { bX = lerp(200, 155, progress2); }
+        else if (penBallDir === "RIGHT") { bX = lerp(200, 245, progress2); }
+        bY = lerp(240, 130, progress2);
+    }
+    noStroke(); fill(0, 0, 0, 100);
+    ellipse(bX + 3, bY + 8, 20, 6);
+    var penBallFlag = (penaltyTurn === 1) ? selectedCountry : aiCountry;
+    drawBallScanlines(bX, bY, 8, penBallFlag);
+    updateAndDrawParticles();
+
+    fill(255, 215, 0); textSize(12); textAlign(CENTER, CENTER);
+    if (penBallState === "READY") {
+        if (penaltyTurn === 1) { text("Your Turn: LEFT or RIGHT to Shoot!", 200, 290); }
+        else { text("AI Kicking: LEFT or RIGHT to Dive!", 200, 290); }
+    }
+    drawMobilePenaltyArrows();
+    drawPauseButton();
+    if (paused) { drawPauseMenu(); }
+};
+
+// --- Input ---
+var keyPressed = function() {
+    keys[keyCode] = true;
+    if (keyCode === 16) { shiftDown = true; }
+    if (keyCode === 80) {
+        if (paused) { unpauseGame(); } else { pauseGame(); }
+        return;
+    }
+    if (paused) { return; }
+
+    if (gameState === "SETTINGS" || gameState === "P1_NAME" || gameState === "P2_NAME") {
+        var target = activeInputMode;
+        if (target === "USERNAME") {
+            if (keyCode === 8) { if (username.length > 0) { username = username.substring(0, username.length - 1); } }
+            else if (keyCode === 10 || keyCode === 13) { if (username.trim().length === 0) { username = "Player"; } closeKeyboard(); }
+            else if (keyCode !== 16) { var ch = resolveTypedChar(); if (ch !== "" && username.length < 12) { username += ch; } }
+        } else if (target === "PASSWORD") {
+            if (keyCode === 8) { if (currentPassword.length > 0) { currentPassword = currentPassword.substring(0, currentPassword.length - 1); } }
+            else if (keyCode === 10 || keyCode === 13) { if (!keyboard.visible) { checkPasswordMatch(currentPassword); } closeKeyboard(); }
+            else if (keyCode !== 16) { var ch2 = resolveTypedChar(); if (ch2 !== "" && currentPassword.length < 20) { currentPassword += ch2; } }
+        } else if (target === "P1NAME") {
+            if (keyCode === 8) { if (tempName1.length > 0) { tempName1 = tempName1.substring(0, tempName1.length - 1); } }
+            else if (keyCode === 10 || keyCode === 13) { if (tempName1.trim().length === 0) { tempName1 = "Player 1"; } closeKeyboard(); gameState = "P1_COUNTRY"; }
+            else if (keyCode !== 16) { var ch3 = resolveTypedChar(); if (ch3 !== "" && tempName1.length < 12) { tempName1 += ch3; } }
+        } else if (target === "P2NAME") {
+            if (keyCode === 8) { if (tempName2.length > 0) { tempName2 = tempName2.substring(0, tempName2.length - 1); } }
+            else if (keyCode === 10 || keyCode === 13) { if (tempName2.trim().length === 0) { tempName2 = "Player 2"; } closeKeyboard(); gameState = "P2_COUNTRY"; }
+            else if (keyCode !== 16) { var ch4 = resolveTypedChar(); if (ch4 !== "" && tempName2.length < 12) { tempName2 += ch4; } }
+        }
+    }
+
+    if (gameState === "MATCH_END") {
+        if (keyCode === 10 || keyCode === 13 || keyCode === 32) {
+            confetti = [];
+            if (gameMode === "SINGLE") { gameState = "BRACKET"; }
+            else { gameState = "TITLE"; }
+        }
+    }
+
+    if (gameState === "PENALTIES") {
+        if (keyCode === LEFT || keyCode === 37) { triggerPenaltyShot("LEFT"); }
+        if (keyCode === RIGHT || keyCode === 39) { triggerPenaltyShot("RIGHT"); }
+    }
+};
+
+var keyReleased = function() {
+    keys[keyCode] = false;
+    if (keyCode === 16) { shiftDown = false; }
+};
+
+var handleGridClick = function(onSelectCallback) {
+    for (var i = 0; i < 16; i++) {
+        var col = i % 4;
+        var row = floor(i / 4);
+        var x = 20 + col * 92;
+        var y = 42 + row * 74;
+        if (mouseX > x && mouseX < x + 84 && mouseY > y && mouseY < y + 66) {
+            onSelectCallback(i);
+            break;
+        }
+    }
+};
+
+var mousePressed = function() {
+    if (paused) { handlePauseMenuClick(mouseX, mouseY); return; }
+
+    if (gameState === "P1_NAME" || gameState === "P2_NAME") {
+        handleKeyboardClick(mouseX, mouseY);
+        return;
+    }
+
+    if (gameState === "PLAYING" || gameState === "OVERTIME" ||
+        gameState === "HALFTIME" || gameState === "PENALTIES") {
+        if (pointOnPauseButton(mouseX, mouseY)) { pauseGame(); return; }
+    }
+
+    if (gameState === "PENALTIES" && mobileControlsEnabled) {
+        if (mouseX > 20 && mouseX < 120 && mouseY > 330 && mouseY < 390) { triggerPenaltyShot("LEFT"); return; }
+        if (mouseX > 280 && mouseX < 380 && mouseY > 330 && mouseY < 390) { triggerPenaltyShot("RIGHT"); return; }
+    }
+
+    if (gameState === "PLAYING" || gameState === "OVERTIME") {
+        if (mobileControlsEnabled) { handleJoystickPress(mouseX, mouseY); }
+        return;
+    }
+
+    if (gameState === "MATCH_END") {
+        if (mouseX > 110 && mouseX < 290 && mouseY > 335 && mouseY < 377) {
+            confetti = [];
+            if (gameMode === "SINGLE") { gameState = "BRACKET"; }
+            else { gameState = "TITLE"; }
+        }
+        return;
+    }
+
+    if (gameState === "TITLE") {
+        var btns = getTitleButtonLayout();
+        for (var i = 0; i < btns.length; i++) {
+            var b = btns[i];
+            if (mouseX > 110 && mouseX < 290 && mouseY > b.y && mouseY < b.y + b.h) {
+                if (b.id === "continue") {
+                    restoreSavedGame();
+                } else if (b.id === "single") {
+                    gameMode = "SINGLE"; gameState = "TOURNAMENT_SELECT";
+                } else if (b.id === "local") {
+                    if (!mobileControlsEnabled) {
+                        gameMode = "LOCAL";
+                        tempName1 = "Player 1";
+                        tempName2 = "Player 2";
+                        p2Country = 1;
+                        gameState = "P1_NAME";
+                        openKeyboardFor("P1NAME");
+                    }
+                } else if (b.id === "penalty") {
+                    gameMode = "PENALTY_ONLY"; gameState = "PENALTY_P1_SELECT";
+                } else if (b.id === "settings") {
+                    gameState = "SETTINGS";
+                }
+                return;
+            }
+        }
+    } else if (gameState === "SETTINGS") {
+        if (keyboard.visible) {
+            if (handleKeyboardClick(mouseX, mouseY)) { return; }
+            if (mouseX > 40 && mouseX < 360 && mouseY > 36 && mouseY < 62) { openKeyboardFor("USERNAME"); return; }
+            if (mouseX > 40 && mouseX < 360 && mouseY > 66 && mouseY < 92) { openKeyboardFor("PASSWORD"); return; }
+            closeKeyboard();
+            return;
+        }
+        if (mouseX > 40 && mouseX < 360) {
+            if (mouseY > 36 && mouseY < 62) {
+                if (mobileControlsEnabled) { openKeyboardFor("USERNAME"); }
+                else { activeInputMode = "USERNAME"; }
+            } else if (mouseY > 66 && mouseY < 92) {
+                if (mobileControlsEnabled) { openKeyboardFor("PASSWORD"); }
+                else { activeInputMode = "PASSWORD"; }
+            }
+        }
+        if (mouseY > 96 && mouseY < 122) {
+            if (mouseX > 40 && mouseX < 140) { halftimeEnabled = !halftimeEnabled; }
+            else if (mouseX > 150 && mouseX < 250) { p1ControlMode = (p1ControlMode === "ARROWS") ? "WASD" : "ARROWS"; }
+            else if (mouseX > 260 && mouseX < 360) {
+                mobileControlsEnabled = !mobileControlsEnabled;
+                if (!mobileControlsEnabled) { closeKeyboard(); }
+            }
+        }
+        if (mouseX > 110 && mouseX < 290 && mouseY > 340 && mouseY < 374) {
+            if (username.trim().length === 0) { username = "Player"; }
+            closeKeyboard(); gameState = "TITLE";
+        }
+    } else if (gameState === "TOURNAMENT_SELECT") {
+        handleGridClick(function(idx) {
+            selectedCountry = idx;
+            buildInitialBracket();
+            savedGame = null;
+            if (gameMode === "SINGLE") { gameState = "DIFFICULTY_SELECT"; }
+            else { gameState = "BRACKET"; }
+        });
+    } else if (gameState === "P1_COUNTRY") {
+        handleGridClick(function(idx) {
+            selectedCountry = idx;
+            gameState = "P2_NAME";
+            openKeyboardFor("P2NAME");
+        });
+    } else if (gameState === "P2_COUNTRY") {
+        handleGridClick(function(idx) {
+            p2Country = idx;
+            gameState = "MATCH_START";
+        });
+    } else if (gameState === "PENALTY_P1_SELECT") {
+        handleGridClick(function(idx) {
+            selectedCountry = idx;
+            do { aiCountry = floor(random(0, 16)); } while (aiCountry === selectedCountry);
+            savedGame = null;
+            gameState = "PENALTIES";
+            setupPenaltyData();
+        });
+    } else if (gameState === "DIFFICULTY_SELECT") {
+        if (mouseX > 110 && mouseX < 290) {
+            if (mouseY > 100 && mouseY < 138) { difficulty = "EASY"; }
+            else if (mouseY > 150 && mouseY < 188) { difficulty = "MEDIUM"; }
+            else if (mouseY > 200 && mouseY < 238) { difficulty = "HARD"; }
+            else if (mouseY > 280 && mouseY < 315) { gameState = "BRACKET"; }
+        }
+    } else if (gameState === "BRACKET") {
+        var wonTournament = (bracket.r4[0] && bracket.r4[0].winner === selectedCountry);
+        var eliminated = isPlayerEliminated();
+        if (wonTournament) {
+            if (mouseX > 110 && mouseX < 290 && mouseY > 358 && mouseY < 390) { gameState = "TITLE"; }
+        } else if (eliminated) {
+            if (tournamentRound <= 4) {
+                if (mouseX > 40 && mouseX < 190 && mouseY > 355 && mouseY < 387) { simulateCurrentRound(); }
+                if (mouseX > 210 && mouseX < 360 && mouseY > 355 && mouseY < 387) { gameState = "TITLE"; }
+            } else {
+                if (mouseX > 110 && mouseX < 290 && mouseY > 355 && mouseY < 387) { gameState = "TITLE"; }
+            }
+        } else {
+            if (mouseX > 110 && mouseX < 290 && mouseY > 355 && mouseY < 390) {
+                setNextAiOpponent();
+                gameState = "MATCH_START";
+            }
+        }
+    } else if (gameState === "MATCH_START") {
+        if (mouseX > 110 && mouseX < 290 && mouseY > 260 && mouseY < 300) {
+            score1 = 0; score2 = 0; currentPeriod = 1;
+            initEntities(); timerStart = millis();
+            gameState = "PLAYING";
+        }
+    }
+};
+
+var mouseReleased = function() { releaseJoystick(); };
+
+var mouseDragged = function() {
+    if (!paused && mobileControlsEnabled && joystick.active) { updateJoystick(mouseX, mouseY); }
+};
+
+// --- Main Draw Loop ---
+var draw = function() {
+    background(15, 20, 30);
+    if (teamColors.length === 0) { initColors(); loadAccountData(); }
+
+    if (gameState === "TITLE") { drawTitleScreen(); }
+    else if (gameState === "SETTINGS") { drawSettingsScreen(); }
+    else if (gameState === "DIFFICULTY_SELECT") { drawDifficultyScreen(); }
+    else if (gameState === "MATCH_START") { drawMatchStartNotification(); }
+    else if (gameState === "BRACKET") { drawBracketScreen(); }
+    else if (gameState === "TOURNAMENT_SELECT") {
+        drawPitch(); fill(0, 180); rect(0, 0, canvasWidth, canvasHeight);
+        fill(255); textAlign(CENTER, CENTER); textSize(16);
+        text("SELECT YOUR NATION", 200, 22);
+        drawCountryGrid(selectedCountry);
+    }
+    else if (gameState === "PENALTY_P1_SELECT") {
+        drawPitch(); fill(0, 180); rect(0, 0, canvasWidth, canvasHeight);
+        fill(255); textAlign(CENTER, CENTER); textSize(16);
+        text("SHOOTOUT: SELECT YOUR NATION", 200, 22);
+        drawCountryGrid(selectedCountry);
+    }
+    else if (gameState === "P1_NAME") { drawNameEntryScreen("P1NAME"); }
+    else if (gameState === "P2_NAME") { drawNameEntryScreen("P2NAME"); }
+    else if (gameState === "P1_COUNTRY") { drawCountryPickScreen("P1_COUNTRY"); }
+    else if (gameState === "P2_COUNTRY") { drawCountryPickScreen("P2_COUNTRY"); }
+    else if (gameState === "MATCH_END") { drawMatchEndScreen(); }
+    else if (gameState === "PLAYING") { runGameLoop(); }
+    else if (gameState === "HALFTIME") { runHalftimeLoop(); }
+    else if (gameState === "OVERTIME") { runGameLoop(); }
+    else if (gameState === "PENALTIES") { runPenaltyLoop(); }
+};
+
+function setup() {
+  var c = createCanvas(canvasWidth, canvasHeight);
+  c.parent(document.body);
+}
+</script>
+</body>
+</html>
