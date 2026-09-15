@@ -48,17 +48,14 @@ var userAccount = "DEFAULT";
 var achievements = { brazilAward: false, victory: false, champion: false };
 var difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
 
-// Pause / Save
 var paused = false;
 var pauseStart = 0;
 var savedGame = null;
 
-// Local 2P setup
 var tempName1 = "Player 1";
 var tempName2 = "Player 2";
 var p2Country = 1;
 
-// Match end screen
 var matchWinnerName = "";
 var matchWinnerCountry = 0;
 var matchIsWin = true;
@@ -66,7 +63,6 @@ var matchScoreLine = "";
 var matchIsPenalties = false;
 var confetti = [];
 
-// Mobile controls
 var mobileControlsEnabled = false;
 var mobileBtn = { left: false, right: false, jump: false };
 var joystick = {
@@ -75,7 +71,6 @@ var joystick = {
     active: false
 };
 
-// In-canvas on-screen keyboard
 var keyboard = {
     visible: false,
     target: "NONE",
@@ -87,7 +82,7 @@ var keyboard = {
     baseY: 248
 };
 
-// --- Save / Load (real localStorage) ---
+// --- Save / Load ---
 var saveAccountData = function() {
     try {
         var data = {
@@ -379,7 +374,7 @@ var soccerPatternRGB = function(nx, ny) {
     return [250, 250, 250];
 };
 
-// --- Flag cache (renders each flag once, then reuses) ---
+// --- Flag cache ---
 var flagCache = {};
 
 var getFlagImage = function(idx, w, h) {
@@ -422,7 +417,7 @@ var drawFlag = function(idx, x, y, w, h) {
     rect(x, y, w, h);
 };
 
-// --- Countryball scanline renderer (unchanged) ---
+// --- Countryball renderer ---
 var drawCountryballScanlines = function(idx, radius) {
     var rSq = radius * radius;
     var step = 0.5;
@@ -471,7 +466,7 @@ var drawCountryballScanlines = function(idx, radius) {
 };
 
 var drawCountryball = function(idx, x, y, radius, lookDir) {
-    pushMatrix();
+    push();
     translate(x, y);
     noStroke();
     fill(0, 0, 0, 60); ellipse(2, radius + 2, radius * 1.7, 10);
@@ -481,8 +476,8 @@ var drawCountryball = function(idx, x, y, radius, lookDir) {
     ellipse(0, 0, radius * 2, radius * 2);
     var eyeOffset = (lookDir > 0) ? 3 : -3;
     fill(240); stroke(0); strokeWeight(1.5);
-    pushMatrix(); translate(-8 + eyeOffset, -6); rotate(lookDir > 0 ? -0.12 : 0.12); ellipse(0, 0, 8, 11); popMatrix();
-    pushMatrix(); translate(8 + eyeOffset, -6); rotate(lookDir > 0 ? 0.12 : -0.12); ellipse(0, 0, 8, 11); popMatrix();
+    push(); translate(-8 + eyeOffset, -6); rotate(lookDir > 0 ? -0.12 : 0.12); ellipse(0, 0, 8, 11); pop();
+    push(); translate(8 + eyeOffset, -6); rotate(lookDir > 0 ? 0.12 : -0.12); ellipse(0, 0, 8, 11); pop();
     noStroke(); fill(0);
     ellipse(-8 + eyeOffset * 0.6, -5, 3.5, 4.5);
     ellipse(8 + eyeOffset * 0.6, -5, 3.5, 4.5);
@@ -493,11 +488,11 @@ var drawCountryball = function(idx, x, y, radius, lookDir) {
     ellipse(-radius * 0.38, -radius * 0.38, radius * 0.28, radius * 0.22);
     fill(255, 120);
     ellipse(-radius * 0.38, -radius * 0.38, radius * 0.44, radius * 0.34);
-    popMatrix();
+    pop();
 };
 
 var drawBallScanlines = function(x, y, radius, flagIdx) {
-    pushMatrix();
+    push();
     translate(x, y);
     var rSq = radius * radius;
     var step = 0.5;
@@ -548,7 +543,7 @@ var drawBallScanlines = function(x, y, radius, flagIdx) {
     ellipse(0, 0, radius * 2, radius * 2);
     noStroke(); fill(255, 210);
     ellipse(-radius * 0.38, -radius * 0.38, radius * 0.35, radius * 0.28);
-    popMatrix();
+    pop();
 };
 
 var drawStyledButton = function(x, y, w, h, label, mainClr) {
@@ -623,13 +618,13 @@ var updateAndDrawConfetti = function() {
         c.y += c.vy;
         c.vy += 0.05;
         c.rot += c.rotSpeed;
-        pushMatrix();
+        push();
         translate(c.x, c.y);
         rotate(c.rot);
         fill(red(c.color), green(c.color), blue(c.color), 230);
         noStroke();
         rect(-c.size / 2, -c.size / 3, c.size, c.size / 1.5);
-        popMatrix();
+        pop();
         if (c.y > canvasHeight + 20) { confetti.splice(i, 1); }
     }
 };
@@ -811,7 +806,7 @@ var triggerPenaltyShot = function(dir) {
     }
 };
 
-// --- Joystick controls ---
+// --- Joystick ---
 var drawJoystick = function() {
     noStroke();
     fill(0, 120, 200, 80);
@@ -1805,7 +1800,7 @@ var drawMatchEndScreen = function() {
             noStroke(); fill(r, g, b);
             rect(0, y, canvasWidth, 4);
         }
-        pushMatrix();
+        push();
         translate(200, 155);
         rotate(millis() * 0.0004);
         for (var i = 0; i < 14; i++) {
@@ -1813,7 +1808,7 @@ var drawMatchEndScreen = function() {
             noStroke(); fill(255, 230, 120, 30);
             triangle(0, 0, 500, 22, 500, -22);
         }
-        popMatrix();
+        pop();
         for (var g2 = 0; g2 < 6; g2++) {
             noStroke(); fill(255, 230, 130, 30 - g2 * 4);
             ellipse(200, 155, 150 + g2 * 28, 150 + g2 * 28);
@@ -2130,9 +2125,12 @@ var mousePressed = function() {
     if (gameState === "PENALTIES" && mobileControlsEnabled) {
         if (mouseX > 20 && mouseX < 120 && mouseY > 330 && mouseY < 390) { triggerPenaltyShot("LEFT"); return; }
         if (mouseX > 280 && mouseX < 380 && mouseY > 330 && mouseY < 390) { triggerPenaltyShot("RIGHT"); return; }
-    }
+ return    }
 
-    if (gameState === "PLAYING" || gameState === "OVERTIME") {
+    if (gameState;
+ === "PLAYING" || gameState === "OVERTIME    }
+
+   ") {
         if (mobileControlsEnabled) { handleJoystickPress(mouseX, mouseY); }
         return;
     }
@@ -2143,10 +2141,7 @@ var mousePressed = function() {
             if (gameMode === "SINGLE") { gameState = "BRACKET"; }
             else { gameState = "TITLE"; }
         }
-        return;
-    }
-
-    if (gameState === "TITLE") {
+        if (gameState === "TITLE") {
         var btns = getTitleButtonLayout();
         for (var i = 0; i < btns.length; i++) {
             var b = btns[i];
@@ -2311,8 +2306,8 @@ var draw = function() {
 // p5.js bootstrap + iOS touch
 // ============================================================
 function setup() {
-    pixelDensity(1);
     var c = createCanvas(canvasWidth, canvasHeight);
+    pixelDensity(1);
     c.parent(document.body);
 }
 
