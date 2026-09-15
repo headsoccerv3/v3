@@ -87,7 +87,7 @@ var keyboard = {
     baseY: 248
 };
 
-// --- Save / Load (real localStorage on GitHub Pages) ---
+// --- Save / Load (real localStorage) ---
 var saveAccountData = function() {
     try {
         var data = {
@@ -379,8 +379,14 @@ var soccerPatternRGB = function(nx, ny) {
     return [250, 250, 250];
 };
 
-var drawFlagShapes = function(idx, w, h) {
-    noStroke();
+// --- Flag cache (renders each flag once, then reuses) ---
+var flagCache = {};
+
+var getFlagImage = function(idx, w, h) {
+    var key = idx + "_" + w + "_" + h;
+    if (flagCache[key]) { return flagCache[key]; }
+    var img = createGraphics(w, h);
+    img.noStroke();
     var step = 1;
     var py, px, nx, ny, rgb;
     var lastR, lastG, lastB, segStart;
@@ -397,25 +403,26 @@ var drawFlagShapes = function(idx, w, h) {
             }
             if (rgb[0] !== lastR || rgb[1] !== lastG || rgb[2] !== lastB) {
                 if (lastR >= 0) {
-                    fill(lastR, lastG, lastB);
-                    rect(segStart, py, px - segStart, step);
+                    img.fill(lastR, lastG, lastB);
+                    img.rect(segStart, py, px - segStart, step);
                 }
                 lastR = rgb[0]; lastG = rgb[1]; lastB = rgb[2];
                 segStart = px;
             }
         }
     }
+    flagCache[key] = img;
+    return img;
 };
 
 var drawFlag = function(idx, x, y, w, h) {
-    pushMatrix();
-    translate(x, y);
-    drawFlagShapes(idx, w, h);
+    var img = getFlagImage(idx, w, h);
+    image(img, x, y);
     noFill(); stroke(0, 90); strokeWeight(1);
-    rect(0, 0, w, h);
-    popMatrix();
+    rect(x, y, w, h);
 };
 
+// --- Countryball scanline renderer (unchanged) ---
 var drawCountryballScanlines = function(idx, radius) {
     var rSq = radius * radius;
     var step = 0.5;
@@ -2304,6 +2311,7 @@ var draw = function() {
 // p5.js bootstrap + iOS touch
 // ============================================================
 function setup() {
+    pixelDensity(1);
     var c = createCanvas(canvasWidth, canvasHeight);
     c.parent(document.body);
 }
