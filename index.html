@@ -48,6 +48,9 @@ var userAccount = "DEFAULT";
 var achievements = { brazilAward: false, victory: false, champion: false };
 var difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
 
+// Password visibility toggle
+var passwordVisible = false;
+
 var paused = false;
 var pauseStart = 0;
 var savedGame = null;
@@ -82,8 +85,14 @@ var keyboard = {
     baseY: 248
 };
 
+// --- Signed-in helpers ---
+var isSignedIn = function() {
+    return userAccount !== "DEFAULT";
+};
+
 // --- Save / Load ---
 var saveAccountData = function() {
+    if (!isSignedIn()) { return; }
     try {
         var data = {
             achievements: achievements,
@@ -92,6 +101,7 @@ var saveAccountData = function() {
         localStorage.setItem("CBS_" + userAccount, JSON.stringify(data));
     } catch (e) {}
 };
+
 var loadAccountData = function() {
     try {
         var raw = localStorage.getItem("CBS_" + userAccount);
@@ -107,24 +117,52 @@ var loadAccountData = function() {
 };
 
 var saveGameToStorage = function() {
+    if (!isSignedIn()) { return; }
     try {
         if (savedGame === null) {
-            localStorage.removeItem("CBS_SAVED_GAME");
+            localStorage.removeItem("CBS_SAVED_GAME_" + userAccount);
         } else {
-            localStorage.setItem("CBS_SAVED_GAME", JSON.stringify(savedGame));
+            localStorage.setItem("CBS_SAVED_GAME_" + userAccount, JSON.stringify(savedGame));
         }
     } catch (e) {}
 };
 
 var loadGameFromStorage = function() {
+    if (!isSignedIn()) { savedGame = null; return; }
     try {
-        var raw = localStorage.getItem("CBS_SAVED_GAME");
+        var raw = localStorage.getItem("CBS_SAVED_GAME_" + userAccount);
         if (raw) {
             savedGame = JSON.parse(raw);
+        } else {
+            savedGame = null;
         }
     } catch (e) {
         savedGame = null;
     }
+};
+
+var saveActiveSession = function() {
+    try {
+        if (isSignedIn()) {
+            localStorage.setItem("CBS_ACTIVE_USER", JSON.stringify({
+                userAccount: userAccount,
+                username: username
+            }));
+        } else {
+            localStorage.removeItem("CBS_ACTIVE_USER");
+        }
+    } catch (e) {}
+};
+
+var loadActiveSession = function() {
+    try {
+        var raw = localStorage.getItem("CBS_ACTIVE_USER");
+        if (raw) {
+            var d = JSON.parse(raw);
+            userAccount = d.userAccount || "DEFAULT";
+            username = d.username || "Player";
+        }
+    } catch (e) {}
 };
 
 var checkPasswordMatch = function(pw) {
@@ -132,7 +170,9 @@ var checkPasswordMatch = function(pw) {
     else if (pw === "7NechiIQ") { username = "Nechi"; userAccount = "NECHI"; }
     else if (pw === "dandanthesodacan") { username = "MrPrayingMantis"; userAccount = "MANTIS"; }
     else { userAccount = "DEFAULT"; }
+    saveActiveSession();
     loadAccountData();
+    loadGameFromStorage();
 };
 
 // --- Match Timers & State ---
@@ -374,7 +414,7 @@ var soccerPatternRGB = function(nx, ny) {
     return [250, 250, 250];
 };
 
-// --- Flag drawing (direct pixel-by-pixel, no createGraphics) ---
+// --- Flag drawing ---
 var drawFlagShapes = function(idx, w, h) {
     noStroke();
     var step = 2;
@@ -584,15 +624,10 @@ var spawnConfetti = function() {
     for (var i = 0; i < 4; i++) {
         var col;
         var r = random(0, 4);
-        if (r < 1) {
-            col = color(255, 220, 80);
-        } else if (r < 2) {
-            col = color(80, 200, 255);
-        } else if (r < 3) {
-            col = color(255, 120, 180);
-        } else {
-            col = color(120, 255, 150);
-        }
+        if (r < 1) { col = color(255, 220, 80); }
+        else if (r < 2) { col = color(80, 200, 255); }
+        else if (r < 3) { col = color(255, 120, 180); }
+        else { col = color(120, 255, 150); }
         confetti.push({
             x: random(-10, canvasWidth + 10),
             y: -10,
@@ -1285,7 +1320,11 @@ var drawPauseMenu = function() {
     drawStyledButton(110, btns[1].y, 180, btns[1].h, "SAVE & MAIN MENU", color(200, 140, 30));
     drawStyledButton(110, btns[2].y, 180, btns[2].h, "MAIN MENU", color(140, 50, 50));
     fill(180); textSize(9); textAlign(CENTER, CENTER);
-    text("Save keeps score, timer, and tournament progress.", 200, 315);
+    if (isSignedIn()) {
+        text("Save keeps score, timer, and tournament progress.", 200, 315);
+    } else {
+        text("Sign in to save progress across sessions.", 200, 315);
+    }
 };
 
 var handlePauseMenuClick = function(mx, my) {
@@ -1673,13 +1712,17 @@ var drawTitleScreen = function() {
         else if (b.id === "settings") { drawStyledButton(110, b.y, 180, b.h, "SETTINGS & ACCOUNTS", color(100, 100, 110)); }
     }
 
-    if (savedGame !== null) {
+    if (savedGame !== null && isSignedIn()) {
         fill(180, 255, 180); textSize(9); textAlign(CENTER, CENTER);
         text("Saved: " + savedGame.gameMode + " | " + savedGame.score1 + "-" + savedGame.score2, 200, 325);
     }
 
     fill(200, 255, 200); textSize(9);
-    text("Polandball Countryball Graphics | Password & Savings Active", 200, 380);
+    if (isSignedIn()) {
+        text("Signed in as " + username + " | Progress saved", 200, 380);
+    } else {
+        text("Not signed in | Sign in via Settings to save progress", 200, 380);
+    }
 };
 
 var drawDifficultyScreen = function() {
@@ -1701,10 +1744,38 @@ var drawSettingsScreen = function() {
     text("SETTINGS & ACCOUNTS", 200, 22);
 
     var nameLabel = "USER: " + username + (activeInputMode === "USERNAME" ? "_" : "");
-    var passLabel = "PASS: " + (currentPassword.length > 0 ? "*****" : "[CLICK]") + (activeInputMode === "PASSWORD" ? "_" : "");
+
+    // Build password label — either masked or plaintext
+    var passLabel;
+    if (passwordVisible) {
+        passLabel = "PASS: " + currentPassword + (activeInputMode === "PASSWORD" ? "_" : "");
+        if (currentPassword.length === 0 && activeInputMode !== "PASSWORD") {
+            passLabel = "PASS: [CLICK]";
+        }
+    } else {
+        var mask = "";
+        for (var m = 0; m < currentPassword.length; m++) { mask += "*"; }
+        passLabel = "PASS: " + (mask.length > 0 ? mask : "[CLICK]") + (activeInputMode === "PASSWORD" ? "_" : "");
+    }
 
     drawStyledButton(40, 36, 320, 26, nameLabel, activeInputMode === "USERNAME" ? color(200, 140, 30) : color(50, 90, 140));
     drawStyledButton(40, 66, 320, 26, passLabel, activeInputMode === "PASSWORD" ? color(200, 140, 30) : color(50, 90, 140));
+
+    // Eye toggle icon — right side of password field
+    var eyeX = 337;
+    var eyeY = 79;
+    noStroke();
+    fill(passwordVisible ? color(80, 200, 120) : color(60, 75, 100));
+    ellipse(eyeX, eyeY, 20, 20);
+    noStroke(); fill(255);
+    ellipse(eyeX, eyeY, 12, 7);
+    fill(0); noStroke();
+    ellipse(eyeX, eyeY, 4, 4);
+    if (!passwordVisible) {
+        stroke(255); strokeWeight(2);
+        line(eyeX - 6, eyeY - 6, eyeX + 6, eyeY + 6);
+    }
+
     drawStyledButton(40, 96, 100, 26, "HT: " + (halftimeEnabled ? "ON" : "OFF"), color(50, 90, 140));
     drawStyledButton(150, 96, 100, 26, "CTRL: " + p1ControlMode, color(50, 90, 140));
     drawStyledButton(260, 96, 100, 26, mobileControlsEnabled ? "MOB: ON" : "MOB: OFF",
@@ -1843,13 +1914,9 @@ var drawMatchEndScreen = function() {
     if (matchIsWin) {
         var winText = matchWinnerName.toUpperCase() + " WINS!!!";
         var fs = 34;
-        if (winText.length > 20) {
-            fs = 20;
-        } else if (winText.length > 16) {
-            fs = 24;
-        } else if (winText.length > 12) {
-            fs = 28;
-        }
+        if (winText.length > 20) { fs = 20; }
+        else if (winText.length > 16) { fs = 24; }
+        else if (winText.length > 12) { fs = 28; }
 
         textSize(fs);
         fill(0, 0, 0, 200); text(winText, 202, 258);
@@ -2163,6 +2230,12 @@ var mousePressed = function() {
             }
         }
     } else if (gameState === "SETTINGS") {
+        // Eye icon toggle (must be checked BEFORE the password field)
+        if (mouseX > 325 && mouseX < 349 && mouseY > 67 && mouseY < 91) {
+            passwordVisible = !passwordVisible;
+            return;
+        }
+
         if (keyboard.visible) {
             if (handleKeyboardClick(mouseX, mouseY)) { return; }
             if (mouseX > 40 && mouseX < 360 && mouseY > 36 && mouseY < 62) { openKeyboardFor("USERNAME"); return; }
@@ -2265,6 +2338,7 @@ var draw = function() {
     background(15, 20, 30);
     if (teamColors.length === 0) {
         initColors();
+        loadActiveSession();
         loadAccountData();
         loadGameFromStorage();
     }
