@@ -3,23 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Head Soccer v3</title>
+<title>Countryball Soccer 2026</title>
 <style>
   html, body {
-    margin: 0;
-    padding: 0;
-    background: #0f141e;
-    overflow: hidden;
-    height: 100%;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    -webkit-user-select: none;
-    user-select: none;
+    margin: 0; padding: 0; background: #0f141e;
+    overflow: hidden; height: 100%; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-user-select: none; user-select: none;
     -webkit-touch-callout: none;
-    touch-action: none;
-    overscroll-behavior: none;
+    touch-action: none; overscroll-behavior: none;
   }
   canvas {
     display: block;
@@ -50,6 +42,13 @@ var difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
 
 var passwordVisible = false;
 
+// --- NEW: display modes ---
+var retroMode = false;
+var showFPS = false;
+var lastFpsSample = 0;
+var fpsFrames = 0;
+var fpsValue = 0;
+
 var paused = false;
 var pauseStart = 0;
 var savedGame = null;
@@ -74,14 +73,8 @@ var joystick = {
 };
 
 var keyboard = {
-    visible: false,
-    target: "NONE",
-    shift: false,
-    keyW: 36,
-    keyH: 24,
-    gap: 3,
-    rowGap: 3,
-    baseY: 248
+    visible: false, target: "NONE", shift: false,
+    keyW: 36, keyH: 24, gap: 3, rowGap: 3, baseY: 248
 };
 
 // --- Signed-in helpers ---
@@ -209,21 +202,17 @@ var NUMERIC = "0123456789";
 var shiftDown = false;
 
 var toUpperCh = function(ch) {
-    var i;
-    for (i = 0; i < LOWER_ALPHA.length; i++) {
+    for (var i = 0; i < LOWER_ALPHA.length; i++) {
         if (LOWER_ALPHA.charAt(i) === ch) { return UPPER_ALPHA.charAt(i); }
     }
     return ch;
 };
-
 var toLowerCh = function(ch) {
-    var i;
-    for (i = 0; i < UPPER_ALPHA.length; i++) {
+    for (var i = 0; i < UPPER_ALPHA.length; i++) {
         if (UPPER_ALPHA.charAt(i) === ch) { return LOWER_ALPHA.charAt(i); }
     }
     return ch;
 };
-
 var keyCodeToChar = function(kc) {
     if (kc === 32) { return " "; }
     if (kc >= 48 && kc <= 57) { return NUMERIC.charAt(kc - 48); }
@@ -233,7 +222,6 @@ var keyCodeToChar = function(kc) {
     }
     return "";
 };
-
 var resolveTypedChar = function() {
     var ks = "";
     if (key !== undefined && key !== null) { ks = "" + key; }
@@ -256,7 +244,7 @@ var getAiConfig = function() {
     else { return { speed: 5.6, jumpPower: -10.8, jumpChance: 0.80, defendPos: 300 }; }
 };
 
-// --- Flag palette (per-pixel color lookup) ---
+// --- Flag palette ---
 var getFlagRGB = function(idx, nx, ny) {
     var ax, ay, u, v, gx, gy, sx, sy, rr, ang;
     switch (idx) {
@@ -266,9 +254,7 @@ var getFlagRGB = function(idx, nx, ny) {
                     if (abs(ny + nx * 0.12) < 0.045) { return [255, 255, 255]; }
                     if ((abs(nx + 0.05) < 0.03 && abs(ny + 0.13) < 0.03) ||
                         (abs(nx - 0.1) < 0.03 && abs(ny - 0.05) < 0.03) ||
-                        (abs(nx + 0.02) < 0.03 && abs(ny + 0.05) < 0.03)) {
-                        return [255, 255, 255];
-                    }
+                        (abs(nx + 0.02) < 0.03 && abs(ny + 0.05) < 0.03)) { return [255, 255, 255]; }
                     return [0, 39, 118];
                 }
                 return [255, 223, 0];
@@ -328,12 +314,9 @@ var getFlagRGB = function(idx, nx, ny) {
             return [255, 255, 255];
         case 10:
             if (nx < -0.24 && ny < 0.08) {
-                u = (nx + 1) / 0.76;
-                v = (ny + 1) / 1.08;
-                gx = floor(u * 5);
-                gy = floor(v * 5);
-                sx = u * 5 - gx - 0.5;
-                sy = v * 5 - gy - 0.5;
+                u = (nx + 1) / 0.76; v = (ny + 1) / 1.08;
+                gx = floor(u * 5); gy = floor(v * 5);
+                sx = u * 5 - gx - 0.5; sy = v * 5 - gy - 0.5;
                 if (sx * sx + sy * sy < 0.15) { return [255, 255, 255]; }
                 return [60, 59, 110];
             }
@@ -355,9 +338,7 @@ var getFlagRGB = function(idx, nx, ny) {
             if ((nx * nx + (ny + 0.25) * (ny + 0.25) < 0.02) ||
                 (nx * nx + (ny - 0.25) * (ny - 0.25) < 0.02) ||
                 ((nx + 0.25) * (nx + 0.25) + ny * ny < 0.02) ||
-                ((nx - 0.25) * (nx - 0.25) + ny * ny < 0.02)) {
-                return [255, 255, 255];
-            }
+                ((nx - 0.25) * (nx - 0.25) + ny * ny < 0.02)) { return [255, 255, 255]; }
             return [0, 180, 240];
         case 13:
             if (nx < -0.28 || nx > 0.28) { return [220, 20, 20]; }
@@ -375,357 +356,131 @@ var getFlagRGB = function(idx, nx, ny) {
         case 15:
             if (abs(abs(nx) - abs(ny)) < 0.15) { return [255, 255, 255]; }
             return [0, 101, 189];
-        default:
-            return [120, 120, 120];
+        default: return [120, 120, 120];
     }
 };
 
 var soccerPatternRGB = function(nx, ny) {
     var r = sqrt(nx * nx + ny * ny);
     if (r < 0.38) { return [26, 26, 26]; }
-    var i, a, cx, cy, dx, dy;
-    for (i = 0; i < 5; i++) {
-        a = TWO_PI / 5 * i - HALF_PI;
-        cx = cos(a) * 0.72;
-        cy = sin(a) * 0.72;
-        dx = nx - cx;
-        dy = ny - cy;
+    for (var i = 0; i < 5; i++) {
+        var a = TWO_PI / 5 * i - HALF_PI;
+        var cx = cos(a) * 0.72, cy = sin(a) * 0.72;
+        var dx = nx - cx, dy = ny - cy;
         if (dx * dx + dy * dy < 0.11) { return [26, 26, 26]; }
     }
     return [250, 250, 250];
 };
 
-// ============================================================
-// PRE-RENDERING CACHE
-// ============================================================
-var ballCache = {};
-var flagCache = {};
-var fieldCanvas = null;
-var penFieldCanvas = null;
-
-var makeCanvas = function(w, h) {
-    var c = document.createElement("canvas");
-    c.width = w; c.height = h;
-    return c;
-};
-
-var renderBallToCanvas = function(idx, radius) {
-    var size = radius * 2;
-    var cvs = makeCanvas(size, size);
-    var ctx = cvs.getContext("2d");
-    var img = ctx.createImageData(size, size);
-    var d = img.data;
-    var lx = -0.48, ly = -0.62, lz = 0.62;
-    for (var py = 0; py < size; py++) {
-        var fy = (py + 0.5 - radius) / radius;
-        for (var px = 0; px < size; px++) {
-            var fx = (px + 0.5 - radius) / radius;
-            var nz2 = 1 - fx * fx - fy * fy;
-            if (nz2 <= 0) continue;
-            var nz = Math.sqrt(nz2);
-            var rgb = (idx >= 0) ? getFlagRGB(idx, fx, fy) : soccerPatternRGB(fx, fy);
-            var diff = fx * lx + fy * ly + nz * lz;
-            if (diff < 0) diff = 0;
-            var intensity = (0.55 + 0.72 * diff) * (0.82 + 0.18 * nz);
-            var spec = (diff > 0.7) ? (diff - 0.7) * 3.6 : 0;
-            var r2 = rgb[0] * intensity + 255 * spec;
-            var g2 = rgb[1] * intensity + 255 * spec;
-            var b2 = rgb[2] * intensity + 255 * spec;
-            if (r2 > 255) r2 = 255; else if (r2 < 0) r2 = 0;
-            if (g2 > 255) g2 = 255; else if (g2 < 0) g2 = 0;
-            if (b2 > 255) b2 = 255; else if (b2 < 0) b2 = 0;
-            var i4 = (py * size + px) * 4;
-            d[i4] = r2; d[i4 + 1] = g2; d[i4 + 2] = b2; d[i4 + 3] = 255;
-        }
-    }
-    ctx.putImageData(img, 0, 0);
-    return cvs;
-};
-
-var getBallCanvas = function(idx, radius) {
-    var key = idx + "_" + radius;
-    var c = ballCache[key];
-    if (!c) { c = renderBallToCanvas(idx, radius); ballCache[key] = c; }
-    return c;
-};
-
-var renderFlagToCanvas = function(idx, w, h) {
-    var cvs = makeCanvas(w, h);
-    var ctx = cvs.getContext("2d");
-    var img = ctx.createImageData(w, h);
-    var d = img.data;
-    for (var py = 0; py < h; py++) {
-        var ny = ((py + 0.5) / h) * 2 - 1;
-        for (var px = 0; px < w; px++) {
-            var nx = ((px + 0.5) / w) * 2 - 1;
-            var rgb = getFlagRGB(idx, nx, ny);
-            var i4 = (py * w + px) * 4;
-            d[i4] = rgb[0]; d[i4 + 1] = rgb[1]; d[i4 + 2] = rgb[2]; d[i4 + 3] = 255;
-        }
-    }
-    ctx.putImageData(img, 0, 0);
-    return cvs;
-};
-
-var getFlagCanvas = function(idx, w, h) {
-    var key = idx + "_" + w + "_" + h;
-    var c = flagCache[key];
-    if (!c) { c = renderFlagToCanvas(idx, w, h); flagCache[key] = c; }
-    return c;
-};
-
-// Full match field (stadium + pitch + goals)
-var renderField = function() {
-    var cvs = makeCanvas(canvasWidth, canvasHeight);
-    var ctx = cvs.getContext("2d");
-
-    // --- Stadium top ---
-    var grad = ctx.createLinearGradient(0, 0, 0, 88);
-    grad.addColorStop(0, "rgb(6,10,26)");
-    grad.addColorStop(1, "rgb(20,36,74)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvasWidth, 88);
-
-    var crowdColors = [
-        "rgba(210,70,70,0.6)", "rgba(70,110,210,0.6)", "rgba(235,200,80,0.6)",
-        "rgba(90,190,110,0.6)", "rgba(180,100,200,0.6)", "rgba(220,220,220,0.6)"
-    ];
-    for (var i = 0; i < 340; i++) {
-        var cx = (i * 47 + 13) % 400;
-        var cy = 4 + ((i * 53 + 7) % 78);
-        ctx.fillStyle = crowdColors[i % 6];
-        ctx.beginPath();
-        ctx.arc(cx, cy, 1.75, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.strokeStyle = "rgba(0,0,0,0.27)";
-    ctx.lineWidth = 1;
-    for (var a = 0; a < 8; a++) {
-        ctx.beginPath();
-        ctx.moveTo(a * 55 + 20, 0);
-        ctx.lineTo(a * 55 + 20, 86);
-        ctx.stroke();
-    }
-    for (var f = 0; f < 4; f++) {
-        var alpha = (30 - f * 6) / 255;
-        ctx.fillStyle = "rgba(255,250,200," + alpha + ")";
-        ctx.beginPath();
-        ctx.ellipse(50, 6, (120 - f * 22) / 2, (70 - f * 14) / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(350, 6, (120 - f * 22) / 2, (70 - f * 14) / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.fillStyle = "rgb(30,42,62)";
-    ctx.fillRect(0, 0, canvasWidth, 5);
-    ctx.fillStyle = "rgb(65,85,115)";
-    ctx.fillRect(0, 4, canvasWidth, 2);
-    ctx.fillStyle = "rgb(32,42,62)";
-    ctx.fillRect(0, 84, canvasWidth, 12);
-    ctx.fillStyle = "rgb(52,68,92)";
-    ctx.fillRect(0, 84, canvasWidth, 3);
-    for (var m = 0; m < canvasWidth; m += 25) {
-        ctx.fillStyle = "rgba(72,92,122,0.63)";
-        ctx.fillRect(m, 87, 3, 9);
-    }
-
-    // --- Pitch grass ---
-    var grad2 = ctx.createLinearGradient(0, 96, 0, 350);
-    grad2.addColorStop(0, "rgb(20,76,32)");
-    grad2.addColorStop(1, "rgb(46,138,60)");
-    ctx.fillStyle = grad2;
-    ctx.fillRect(0, 96, canvasWidth, 254);
-
-    for (var s = 0; s < canvasWidth; s += 40) {
-        ctx.fillStyle = "rgba(255,255,255,0.04)";
-        ctx.fillRect(s, 96, 20, 254);
-    }
-    ctx.fillStyle = "rgba(255,255,200,0.086)";
-    ctx.beginPath();
-    ctx.moveTo(20, 96); ctx.lineTo(0, 350); ctx.lineTo(180, 350); ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(380, 96); ctx.lineTo(220, 350); ctx.lineTo(400, 350); ctx.closePath();
-    ctx.fill();
-
-    // --- Field lines ---
-    ctx.strokeStyle = "rgba(255,255,255,0.78)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, 96); ctx.lineTo(canvasWidth, 96);
-    ctx.stroke();
-
-    ctx.strokeStyle = "rgba(255,255,255,0.86)";
-    ctx.beginPath();
-    ctx.moveTo(200, 220); ctx.lineTo(200, 350);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(200, 285, 35, 17.5, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, 350); ctx.lineTo(canvasWidth, 350);
-    ctx.stroke();
-
-    // Goal net pattern
-    ctx.strokeStyle = "rgba(200,200,200,0.47)";
-    ctx.lineWidth = 1;
-    for (var gx = 0; gx < goalWidth; gx += 8) {
-        ctx.beginPath();
-        ctx.moveTo(gx, 350 - goalHeight); ctx.lineTo(gx, 350);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(canvasWidth - gx, 350 - goalHeight); ctx.lineTo(canvasWidth - gx, 350);
-        ctx.stroke();
-    }
-    for (var gy = 350 - goalHeight; gy < 350; gy += 10) {
-        ctx.beginPath();
-        ctx.moveTo(0, gy); ctx.lineTo(goalWidth, gy);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(canvasWidth - goalWidth, gy); ctx.lineTo(canvasWidth, gy);
-        ctx.stroke();
-    }
-
-    // Layered goal frames
-    ctx.strokeStyle = "rgba(0,0,0,0.55)";
-    ctx.lineWidth = 7;
-    ctx.strokeRect(2, 350 - goalHeight + 3, goalWidth, goalHeight);
-    ctx.strokeRect(canvasWidth - goalWidth - 2, 350 - goalHeight + 3, goalWidth, goalHeight);
-
-    ctx.strokeStyle = "rgb(220,220,220)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(0, 350 - goalHeight, goalWidth, goalHeight);
-    ctx.strokeRect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
-
-    ctx.strokeStyle = "rgb(255,255,255)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, 350 - goalHeight, goalWidth, goalHeight);
-    ctx.strokeRect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
-
-    return cvs;
-};
-
-var getFieldCanvas = function() {
-    if (!fieldCanvas) { fieldCanvas = renderField(); }
-    return fieldCanvas;
-};
-
-// Penalty stadium background
-var renderPenaltyField = function() {
-    var cvs = makeCanvas(canvasWidth, canvasHeight);
-    var ctx = cvs.getContext("2d");
-
-    var grad = ctx.createLinearGradient(0, 0, 0, 130);
-    grad.addColorStop(0, "rgb(4,6,20)");
-    grad.addColorStop(1, "rgb(18,32,68)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvasWidth, 130);
-
-    var crowdColors = [
-        "rgba(200,60,60,0.51)", "rgba(60,90,200,0.51)", "rgba(230,200,80,0.51)",
-        "rgba(90,180,110,0.51)", "rgba(220,220,220,0.51)"
-    ];
-    for (var i = 0; i < 260; i++) {
-        var cx = (i * 61 + 11) % 400;
-        var cy = 6 + ((i * 43 + 5) % 118);
-        ctx.fillStyle = crowdColors[i % 5];
-        ctx.beginPath();
-        ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    for (var f = 0; f < 5; f++) {
-        var alpha = (40 - f * 7) / 255;
-        ctx.fillStyle = "rgba(255,250,200," + alpha + ")";
-        ctx.beginPath();
-        ctx.ellipse(60, 10, (140 - f * 26) / 2, (90 - f * 18) / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(340, 10, (140 - f * 26) / 2, (90 - f * 18) / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.fillStyle = "rgb(20,28,48)";
-    ctx.fillRect(0, 0, canvasWidth, 6);
-    ctx.fillStyle = "rgb(60,80,110)";
-    ctx.fillRect(0, 5, canvasWidth, 2);
-    ctx.fillStyle = "rgb(28,36,55)";
-    ctx.fillRect(0, 128, canvasWidth, 10);
-    ctx.fillStyle = "rgb(48,62,88)";
-    ctx.fillRect(0, 128, canvasWidth, 2);
-
-    var grad2 = ctx.createLinearGradient(0, 138, 0, 260);
-    grad2.addColorStop(0, "rgb(24,82,34)");
-    grad2.addColorStop(1, "rgb(46,138,58)");
-    ctx.fillStyle = grad2;
-    ctx.fillRect(0, 138, canvasWidth, 122);
-
-    for (var s = 0; s < canvasWidth; s += 40) {
-        ctx.fillStyle = "rgba(255,255,255,0.047)";
-        ctx.fillRect(s, 138, 20, 122);
-    }
-    ctx.fillStyle = "rgba(255,255,200,0.07)";
-    ctx.beginPath();
-    ctx.moveTo(0, 138); ctx.lineTo(400, 138); ctx.lineTo(200, 260); ctx.closePath();
-    ctx.fill();
-
-    // Goal net (penalty view)
-    var gx = 130, gy = 100, gw = 140, gh = 80;
-    ctx.fillStyle = "rgba(10,14,22,0.78)";
-    ctx.fillRect(gx, gy, gw, gh);
-    ctx.strokeStyle = "rgba(220,220,220,0.39)";
-    ctx.lineWidth = 1;
-    for (var i2 = gx; i2 <= gx + gw; i2 += 8) {
-        ctx.beginPath(); ctx.moveTo(i2, gy); ctx.lineTo(i2, gy + gh); ctx.stroke();
-    }
-    for (var j2 = gy; j2 <= gy + gh; j2 += 8) {
-        ctx.beginPath(); ctx.moveTo(gx, j2); ctx.lineTo(gx + gw, j2); ctx.stroke();
-    }
-    ctx.strokeStyle = "rgba(220,220,220,0.20)";
-    for (var k = -gh; k < gw; k += 16) {
-        var x1 = gx + Math.max(0, k);
-        var y1 = gy + Math.max(0, -k);
-        var x2 = gx + Math.min(gw, k + gh);
-        var y2 = gy + Math.min(gh, gh + k);
-        if (x1 <= gx + gw && y1 <= gy + gh) {
-            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-        }
-    }
-    ctx.strokeStyle = "rgba(0,0,0,0.63)";
-    ctx.lineWidth = 8;
-    ctx.strokeRect(gx + 2, gy + 3, gw, gh);
-    ctx.strokeStyle = "rgb(240,240,240)";
-    ctx.lineWidth = 6;
-    ctx.strokeRect(gx, gy, gw, gh);
-    ctx.strokeStyle = "rgb(255,255,255)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(gx, gy, gw, gh);
-
-    return cvs;
-};
-
-var getPenaltyFieldCanvas = function() {
-    if (!penFieldCanvas) { penFieldCanvas = renderPenaltyField(); }
-    return penFieldCanvas;
-};
-
-// ============================================================
-// DRAW PRIMITIVES (fast, blitting cached canvases)
-// ============================================================
-
-var drawCountryball = function(idx, x, y, radius, lookDir) {
+// --- Detailed flag drawing ---
+var drawFlagShapes = function(idx, w, h) {
     noStroke();
-    fill(0, 0, 0, 60); ellipse(x + 2, y + radius + 2, radius * 1.7, 10);
-    fill(0, 0, 0, 40); ellipse(x + 2, y + radius + 2, radius * 2.0, 14);
+    var step = 2;
+    var py, px, nx, ny, rgb;
+    var lastR, lastG, lastB, segStart;
+    for (py = 0; py < h; py += step) {
+        ny = ((py + step * 0.5) / h) * 2 - 1;
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = 0;
+        for (px = 0; px <= w; px += step) {
+            if (px < w) {
+                nx = ((px + step * 0.5) / w) * 2 - 1;
+                rgb = getFlagRGB(idx, nx, ny);
+            } else { rgb = [-1, -1, -1]; }
+            if (rgb[0] !== lastR || rgb[1] !== lastG || rgb[2] !== lastB) {
+                if (lastR >= 0) {
+                    fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, step);
+                }
+                lastR = rgb[0]; lastG = rgb[1]; lastB = rgb[2];
+                segStart = px;
+            }
+        }
+    }
+};
 
-    var cvs = getBallCanvas(idx, radius);
-    drawingContext.drawImage(cvs, x - radius, y - radius);
-
-    noFill(); stroke(0); strokeWeight(2.5);
-    ellipse(x, y, radius * 2, radius * 2);
-
+var drawFlag = function(idx, x, y, w, h) {
     push();
     translate(x, y);
+    if (retroMode) {
+        // Retro: flat color rectangle
+        noStroke();
+        fill(teamColors[idx] || color(100));
+        rect(0, 0, w, h);
+    } else {
+        drawFlagShapes(idx, w, h);
+    }
+    noFill(); stroke(0, 90); strokeWeight(1);
+    rect(0, 0, w, h);
+    pop();
+};
+
+// --- Countryball ---
+var drawCountryballScanlines = function(idx, radius) {
+    var rSq = radius * radius;
+    var step = 0.5;
+    var bandHeight = 1.3;
+    var py, px, xSpan, rgb, r2, g2, b2, qr, qg, qb;
+    var lastR, lastG, lastB, segStart;
+    var lx = -0.48, ly = -0.62, lz = 0.62;
+    for (py = -radius; py <= radius; py += step) {
+        xSpan = sqrt(max(0, rSq - py * py));
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = -xSpan;
+        for (px = -xSpan; px <= xSpan; px += step) {
+            rgb = getFlagRGB(idx, px / radius, py / radius);
+            var nx = px / radius, ny = py / radius;
+            var nzSq = 1 - nx * nx - ny * ny;
+            var nz = nzSq > 0 ? sqrt(nzSq) : 0;
+            var diff = nx * lx + ny * ly + nz * lz;
+            if (diff < 0) { diff = 0; }
+            var intensity = (0.55 + 0.72 * diff) * (0.82 + 0.18 * nz);
+            var spec = pow(diff, 34) * 1.1;
+            r2 = rgb[0] * intensity + 255 * spec;
+            g2 = rgb[1] * intensity + 255 * spec;
+            b2 = rgb[2] * intensity + 255 * spec;
+            if (r2 > 255) { r2 = 255; } else if (r2 < 0) { r2 = 0; }
+            if (g2 > 255) { g2 = 255; } else if (g2 < 0) { g2 = 0; }
+            if (b2 > 255) { b2 = 255; } else if (b2 < 0) { b2 = 0; }
+            qr = (r2 / 12 | 0) * 12;
+            qg = (g2 / 12 | 0) * 12;
+            qb = (b2 / 12 | 0) * 12;
+            if (qr !== lastR || qg !== lastG || qb !== lastB) {
+                if (lastR >= 0) {
+                    noStroke(); fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, bandHeight);
+                }
+                lastR = qr; lastG = qg; lastB = qb;
+                segStart = px;
+            }
+        }
+        if (lastR >= 0) {
+            noStroke(); fill(lastR, lastG, lastB);
+            rect(segStart, py, xSpan - segStart, bandHeight);
+        }
+    }
+};
+
+var drawCountryball = function(idx, x, y, radius, lookDir) {
+    push();
+    translate(x, y);
+    noStroke();
+    fill(0, 0, 0, 60); ellipse(2, radius + 2, radius * 1.7, 10);
+    fill(0, 0, 0, 40); ellipse(2, radius + 2, radius * 2.0, 14);
+
+    if (retroMode) {
+        // Retro: flat colored circle
+        fill(teamColors[idx] || color(150));
+        stroke(0); strokeWeight(2);
+        ellipse(0, 0, radius * 2, radius * 2);
+    } else {
+        drawCountryballScanlines(idx, radius);
+        noFill(); stroke(0); strokeWeight(2.5);
+        ellipse(0, 0, radius * 2, radius * 2);
+    }
+
     var eyeOffset = (lookDir > 0) ? 3 : -3;
-    fill(240); stroke(0); strokeWeight(1.5);
+    fill(255); stroke(0); strokeWeight(1.5);
     push(); translate(-8 + eyeOffset, -6); rotate(lookDir > 0 ? -0.12 : 0.12); ellipse(0, 0, 8, 11); pop();
     push(); translate(8 + eyeOffset, -6); rotate(lookDir > 0 ? 0.12 : -0.12); ellipse(0, 0, 8, 11); pop();
     noStroke(); fill(0);
@@ -734,27 +489,72 @@ var drawCountryball = function(idx, x, y, radius, lookDir) {
     fill(255, 220);
     ellipse(-8 + eyeOffset * 0.6 - 1, -6, 1.5, 1.8);
     ellipse(8 + eyeOffset * 0.6 - 1, -6, 1.5, 1.8);
+
+    if (!retroMode) {
+        noStroke(); fill(255, 200);
+        ellipse(-radius * 0.38, -radius * 0.38, radius * 0.28, radius * 0.22);
+        fill(255, 120);
+        ellipse(-radius * 0.38, -radius * 0.38, radius * 0.44, radius * 0.34);
+    }
     pop();
 };
 
 var drawBallScanlines = function(x, y, radius, flagIdx) {
-    var cvs = getBallCanvas(flagIdx, radius);
     push();
     translate(x, y);
-    rotate(ball.angle);
-    drawingContext.drawImage(cvs, -radius, -radius);
+    var rSq = radius * radius;
+    var step = 0.5;
+    var bandHeight = 1.4;
+    var py, px, xSpan, rgb, r2, g2, b2, qr, qg, qb;
+    var lastR, lastG, lastB, segStart;
+    var lx = -0.48, ly = -0.62, lz = 0.62;
+    for (py = -radius; py <= radius; py += step) {
+        xSpan = sqrt(max(0, rSq - py * py));
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = -xSpan;
+        for (px = -xSpan; px <= xSpan; px += step) {
+            var nx = px / radius, ny = py / radius;
+            if (flagIdx >= 0) { rgb = getFlagRGB(flagIdx, nx, ny); }
+            else { rgb = soccerPatternRGB(nx, ny); }
+            var nzSq = 1 - nx * nx - ny * ny;
+            var nz = nzSq > 0 ? sqrt(nzSq) : 0;
+            var diff = nx * lx + ny * ly + nz * lz;
+            if (diff < 0) { diff = 0; }
+            var intensity = (0.55 + 0.72 * diff) * (0.82 + 0.18 * nz);
+            var spec = pow(diff, 34) * 1.2;
+            r2 = rgb[0] * intensity + 255 * spec;
+            g2 = rgb[1] * intensity + 255 * spec;
+            b2 = rgb[2] * intensity + 255 * spec;
+            if (r2 > 255) { r2 = 255; } else if (r2 < 0) { r2 = 0; }
+            if (g2 > 255) { g2 = 255; } else if (g2 < 0) { g2 = 0; }
+            if (b2 > 255) { b2 = 255; } else if (b2 < 0) { b2 = 0; }
+            qr = (r2 / 12 | 0) * 12;
+            qg = (g2 / 12 | 0) * 12;
+            qb = (b2 / 12 | 0) * 12;
+            if (qr !== lastR || qg !== lastG || qb !== lastB) {
+                if (lastR >= 0) {
+                    noStroke(); fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, bandHeight);
+                }
+                lastR = qr; lastG = qg; lastB = qb;
+                segStart = px;
+            }
+        }
+        if (lastR >= 0) {
+            noStroke(); fill(lastR, lastG, lastB);
+            rect(segStart, py, xSpan - segStart, bandHeight);
+        }
+    }
+    if (!retroMode) {
+        noFill(); stroke(0); strokeWeight(1.4);
+        ellipse(0, 0, radius * 2, radius * 2);
+        noStroke(); fill(255, 210);
+        ellipse(-radius * 0.38, -radius * 0.38, radius * 0.35, radius * 0.28);
+    }
     pop();
-    noFill(); stroke(0); strokeWeight(1.4);
-    ellipse(x, y, radius * 2, radius * 2);
 };
 
-var drawFlag = function(idx, x, y, w, h) {
-    var cvs = getFlagCanvas(idx, w, h);
-    drawingContext.drawImage(cvs, x, y);
-    noFill(); stroke(0, 90); strokeWeight(1);
-    rect(x, y, w, h);
-};
-
+// --- Button helpers ---
 var drawStyledButton = function(x, y, w, h, label, mainClr) {
     var hover = (mouseX > x && mouseX < x + w && mouseY > y && mouseY < y + h);
     fill(0, 60); rect(x + 2, y + 3, w, h, 8);
@@ -771,8 +571,7 @@ var drawStyledButton = function(x, y, w, h, label, mainClr) {
 
 var drawDisabledButton = function(x, y, w, h, label) {
     fill(0, 60); rect(x + 2, y + 3, w, h, 8);
-    fill(40, 40, 45);
-    stroke(90); strokeWeight(2); rect(x, y, w, h, 8);
+    fill(40, 40, 45); stroke(90); strokeWeight(2); rect(x, y, w, h, 8);
     fill(120); textAlign(CENTER, CENTER); textSize(11);
     text(label, x + w / 2, y + h / 2);
 };
@@ -796,7 +595,7 @@ var updateAndDrawParticles = function() {
 };
 
 var spawnConfetti = function() {
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 4; i++) {
         var col;
         var r = random(0, 4);
         if (r < 1) { col = color(255, 220, 80); }
@@ -881,7 +680,7 @@ var simulateCurrentRound = function() {
             if (m.t1 === selectedCountry || m.t2 === selectedCountry) {
                 m.s1 = score1; m.s2 = score2;
                 m.winner = score1 > score2 ? m.t1 : m.t2;
-                if (m.t1 === selectedCountry || m.t2 === selectedCountry) { checkMatchAchievements(); }
+                checkMatchAchievements();
             } else { simulateMatch(m); }
         }
     }
@@ -1014,8 +813,7 @@ var drawMobileControls = function() {
 
 var updateJoystick = function(mx, my) {
     if (!joystick.active) { return; }
-    var dx = mx - joystick.baseX;
-    var dy = my - joystick.baseY;
+    var dx = mx - joystick.baseX, dy = my - joystick.baseY;
     var dist = sqrt(dx * dx + dy * dy);
     if (dist > joystick.baseRadius) {
         dx = dx / dist * joystick.baseRadius;
@@ -1045,7 +843,7 @@ var releaseJoystick = function() {
     mobileBtn.left = false; mobileBtn.right = false; mobileBtn.jump = false;
 };
 
-// --- Win / Loss routing ---
+// --- Win / Loss ---
 var goToMatchEnd = function(isPenalties) {
     matchIsPenalties = isPenalties;
     var p1Won = (score1 > score2);
@@ -1145,8 +943,7 @@ var updateBall = function() {
 };
 
 var resolveCollision = function(p) {
-    var dx = ball.x - p.x;
-    var dy = ball.y - p.y;
+    var dx = ball.x - p.x, dy = ball.y - p.y;
     var distance = sqrt(dx * dx + dy * dy);
     var minDist = p.radius + ball.radius;
     if (distance < minDist) {
@@ -1158,9 +955,7 @@ var resolveCollision = function(p) {
         if (ball.teamIndex !== p.teamIndex) {
             ball.teamIndex = p.teamIndex;
             spawnBurst(ball.x, ball.y, teamColors[p.teamIndex]);
-        } else {
-            spawnBurst(ball.x, ball.y, color(255, 230, 100));
-        }
+        } else { spawnBurst(ball.x, ball.y, color(255, 230, 100)); }
     }
 };
 
@@ -1197,22 +992,117 @@ var processPeriodEnd = function() {
     }
 };
 
-// --- Fast pitch (blit) ---
+// --- Pitch (with retro variant) ---
 var drawPitch = function() {
-    drawingContext.drawImage(getFieldCanvas(), 0, 0);
+    if (retroMode) {
+        // Retro: cyan sky + solid green grass + plain white lines
+        background(135, 206, 235);
+        fill(34, 139, 34); noStroke();
+        rect(0, 350, canvasWidth, 50);
+        stroke(255, 150); strokeWeight(2); noFill();
+        line(200, 200, 200, 350);
+        ellipse(200, 275, 60, 40);
+        stroke(255); strokeWeight(3);
+        rect(0, 350 - goalHeight, goalWidth, goalHeight);
+        rect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
+        noStroke();
+        return;
+    }
+
+    // Detailed stadium
+    var y, i;
+    for (y = 0; y < 88; y += 4) {
+        var t = y / 88;
+        var c = lerpColor(color(6, 10, 26), color(20, 36, 74), t);
+        noStroke(); fill(c);
+        rect(0, y, canvasWidth, 4);
+    }
+    for (i = 0; i < 340; i++) {
+        var cx = (i * 47 + 13) % 400;
+        var cy = 4 + ((i * 53 + 7) % 78);
+        var cIdx = i % 6, col;
+        if (cIdx === 0) { col = color(210, 70, 70); }
+        else if (cIdx === 1) { col = color(70, 110, 210); }
+        else if (cIdx === 2) { col = color(235, 200, 80); }
+        else if (cIdx === 3) { col = color(90, 190, 110); }
+        else if (cIdx === 4) { col = color(180, 100, 200); }
+        else { col = color(220, 220, 220); }
+        fill(red(col), green(col), blue(col), 150);
+        noStroke(); ellipse(cx, cy, 3.5, 3.5);
+    }
+    stroke(0, 0, 0, 70); strokeWeight(1);
+    for (i = 0; i < 8; i++) { line(i * 55 + 20, 0, i * 55 + 20, 86); }
+    for (i = 0; i < 4; i++) {
+        var a = 30 - i * 6;
+        noStroke(); fill(255, 250, 200, a);
+        ellipse(50, 6, 120 - i * 22, 70 - i * 14);
+        ellipse(350, 6, 120 - i * 22, 70 - i * 14);
+    }
+    fill(30, 42, 62); noStroke(); rect(0, 0, canvasWidth, 5);
+    fill(65, 85, 115); rect(0, 4, canvasWidth, 2);
+    fill(32, 42, 62); noStroke(); rect(0, 84, canvasWidth, 12);
+    fill(52, 68, 92); rect(0, 84, canvasWidth, 3);
+    for (i = 0; i < canvasWidth; i += 25) { fill(72, 92, 122, 160); rect(i, 87, 3, 9); }
+
+    for (y = 96; y < 350; y += 10) {
+        var inter = map(y, 96, 350, 0, 1);
+        stroke(lerpColor(color(20, 76, 32), color(46, 138, 60), inter));
+        strokeWeight(10); line(0, y + 5, canvasWidth, y + 5);
+    }
+    for (i = 0; i < canvasWidth; i += 40) { noStroke(); fill(255, 255, 255, 10); rect(i, 96, 20, 254); }
+    noStroke(); fill(255, 255, 200, 22);
+    triangle(20, 96, 0, 350, 180, 350);
+    triangle(380, 96, 220, 350, 400, 350);
+
+    stroke(255, 200); strokeWeight(2); noFill();
+    line(0, 96, canvasWidth, 96);
+    stroke(255, 220); strokeWeight(2); noFill();
+    line(200, 220, 200, 350);
+    ellipse(200, 285, 70, 35);
+    line(0, 350, canvasWidth, 350);
+    stroke(200, 200, 200, 120); strokeWeight(1);
+    for (var gx = 0; gx < goalWidth; gx += 8) {
+        line(gx, 350 - goalHeight, gx, 350);
+        line(canvasWidth - gx, 350 - goalHeight, canvasWidth - gx, 350);
+    }
+    for (var gy = 350 - goalHeight; gy < 350; gy += 10) {
+        line(0, gy, goalWidth, gy);
+        line(canvasWidth - goalWidth, gy, canvasWidth, gy);
+    }
+    stroke(0, 0, 0, 140); strokeWeight(7); noFill();
+    rect(2, 350 - goalHeight + 3, goalWidth, goalHeight);
+    rect(canvasWidth - goalWidth - 2, 350 - goalHeight + 3, goalWidth, goalHeight);
+    stroke(220); strokeWeight(5); noFill();
+    rect(0, 350 - goalHeight, goalWidth, goalHeight);
+    rect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
+    stroke(255); strokeWeight(2); noFill();
+    rect(0, 350 - goalHeight, goalWidth, goalHeight);
+    rect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
 };
 
-// --- Player ---
 var drawPlayer = function(p) {
     var lookDir = (p.x < ball.x) ? 1 : -1;
     drawCountryball(p.teamIndex, p.x, p.y, p.radius, lookDir);
-    fill(0, 200); stroke(255); strokeWeight(1.5);
-    rect(p.x - 22, p.y - p.radius - 14, 44, 12, 3);
-    fill(255); textAlign(CENTER, CENTER); textSize(8);
-    text(p.name, p.x, p.y - p.radius - 8);
+    if (retroMode) {
+        // Classic look: name badge under the ball
+        fill(0, 100); noStroke();
+        rect(p.x - 15, p.y + p.radius + 2, 30, 12, 4);
+        fill(255); textSize(9); textAlign(CENTER); textSize(8);
+        text(p.name, p.x, p.y + p.radius + 11);
+    } else {
+        fill(0, 200); stroke(255); strokeWeight(1.5);
+        rect(p.x - 22, p.y - p.radius - 14, 44, 12, 3);
+        fill(255); textAlign(CENTER, CENTER); textSize(8);
+        text(p.name, p.x, p.y - p.radius - 8);
+    }
 };
 
 var drawBall = function() {
+    if (retroMode) {
+        fill(255); stroke(0); strokeWeight(1.5);
+        ellipse(ball.x, ball.y, ball.radius * 2, ball.radius * 2);
+        return;
+    }
     noStroke(); fill(0, 0, 0, 90);
     ellipse(ball.x + 1, 350 - 2, ball.radius * 2.1, 6);
     fill(0, 0, 0, 50);
@@ -1221,6 +1111,23 @@ var drawBall = function() {
 };
 
 var drawGameplayHUD = function() {
+    if (retroMode) {
+        textAlign(CENTER); noStroke();
+        fill(0, 120); rect(110, 10, 180, 45, 6);
+        textSize(20); fill(255);
+        text(score1 + " : " + score2, 200, 32);
+        textSize(10); fill(230);
+        text(player1.name, 135, 30);
+        text(player2.name, 265, 30);
+        var timeElapsed = floor((millis() - timerStart) / 1000);
+        var targetSecs = (currentPeriod === 3) ? extraTimeDuration : periodDuration;
+        var displaySecs = max(0, targetSecs - timeElapsed);
+        var periodLabel = (currentPeriod === 1) ? "1ST" : (currentPeriod === 2 ? "2ND" : "E.T.");
+        fill(255, 215, 0); textSize(11);
+        text(periodLabel + " | 00:" + (displaySecs < 10 ? "0" : "") + displaySecs, 200, 48);
+        return;
+    }
+
     fill(0, 180); stroke(255, 100); strokeWeight(1.5); rect(60, 8, 280, 38, 8);
     fill(255); textAlign(CENTER, CENTER); textSize(11);
     text(player1.name + " (" + tournamentTeams[player1.teamIndex] + ") " + score1 + " - " + score2 + " " + player2.name, 200, 20);
@@ -1243,6 +1150,26 @@ var drawMobilePenaltyArrows = function() {
     rect(280, 330, 100, 60, 10);
     fill(255); triangle(355, 360, 325, 342, 325, 378);
     fill(220); textSize(11); text("RIGHT", 330, 375);
+};
+
+// --- FPS ---
+var updateFPS = function() {
+    if (!showFPS) { return; }
+    fpsFrames++;
+    var now = millis();
+    if (now - lastFpsSample >= 500) {
+        fpsValue = round(fpsFrames * 1000 / (now - lastFpsSample));
+        fpsFrames = 0;
+        lastFpsSample = now;
+    }
+};
+
+var drawFPS = function() {
+    if (!showFPS) { return; }
+    noStroke(); fill(0, 180);
+    rect(340, 4, 56, 18, 4);
+    fill(120, 255, 120); textAlign(CENTER, CENTER); textSize(10);
+    text("FPS: " + fpsValue, 368, 13);
 };
 
 // --- Pause ---
@@ -1277,10 +1204,7 @@ var captureSaveState = function() {
         score1: score1, score2: score2, currentPeriod: currentPeriod,
         elapsedMs: (gameState === "PLAYING" || gameState === "OVERTIME") ? (millis() - timerStart) : 0,
         selectedCountry: selectedCountry, aiCountry: aiCountry, tournamentRound: tournamentRound,
-        bracket: {
-            r1: copyMatches(bracket.r1), r2: copyMatches(bracket.r2),
-            r3: copyMatches(bracket.r3), r4: copyMatches(bracket.r4)
-        },
+        bracket: { r1: copyMatches(bracket.r1), r2: copyMatches(bracket.r2), r3: copyMatches(bracket.r3), r4: copyMatches(bracket.r4) },
         penaltyTurn: penaltyTurn, penaltyIndex: penaltyIndex,
         p1PenScores: p1PenScores.slice(0), p2PenScores: p2PenScores.slice(0),
         penBallState: penBallState, penGoalieState: penGoalieState, penBallDir: penBallDir,
@@ -1367,12 +1291,11 @@ var pointOnPauseButton = function(mx, my) {
     return (dx * dx + dy * dy) < 16 * 16;
 };
 
+// --- Country grid ---
 var drawCountryGrid = function(activeIdx) {
     for (var i = 0; i < 16; i++) {
-        var col = i % 4;
-        var row = floor(i / 4);
-        var x = 20 + col * 92;
-        var y = 42 + row * 74;
+        var col = i % 4, row = floor(i / 4);
+        var x = 20 + col * 92, y = 42 + row * 74;
         var isSelected = (i === activeIdx);
         fill(isSelected ? color(30, 80, 120) : color(20, 30, 45));
         stroke(isSelected ? color(255, 215, 0) : color(255, 60));
@@ -1387,6 +1310,7 @@ var drawCountryGrid = function(activeIdx) {
     }
 };
 
+// --- Bracket ---
 var drawBracketMatchNode = function(x, y, w, h, match) {
     fill(20, 30, 45, 230); stroke(255, 100); strokeWeight(1); rect(x, y, w, h, 3);
     if (!match) { return; }
@@ -1482,12 +1406,8 @@ var drawBracketScreen = function() {
         if (tournamentRound <= 4) {
             drawStyledButton(40, 355, 150, 32, "SIMULATE NEXT", color(180, 100, 40));
             drawStyledButton(210, 355, 150, 32, "MAIN MENU", color(140, 50, 50));
-        } else {
-            drawStyledButton(110, 355, 180, 32, "MAIN MENU", color(140, 50, 50));
-        }
-    } else {
-        drawStyledButton(110, 355, 180, 35, "PLAY NEXT MATCH", color(40, 140, 60));
-    }
+        } else { drawStyledButton(110, 355, 180, 32, "MAIN MENU", color(140, 50, 50)); }
+    } else { drawStyledButton(110, 355, 180, 35, "PLAY NEXT MATCH", color(40, 140, 60)); }
 };
 
 var drawAchievementBadge = function(y, title, desc, unlocked) {
@@ -1734,31 +1654,37 @@ var drawSettingsScreen = function() {
     drawStyledButton(40, 36, 320, 26, nameLabel, activeInputMode === "USERNAME" ? color(200, 140, 30) : color(50, 90, 140));
     drawStyledButton(40, 66, 320, 26, passLabel, activeInputMode === "PASSWORD" ? color(200, 140, 30) : color(50, 90, 140));
 
+    // Eye icon
     var eyeX = 337, eyeY = 79;
     noStroke();
     fill(passwordVisible ? color(80, 200, 120) : color(60, 75, 100));
     ellipse(eyeX, eyeY, 20, 20);
-    noStroke(); fill(255);
-    ellipse(eyeX, eyeY, 12, 7);
-    fill(0); noStroke();
-    ellipse(eyeX, eyeY, 4, 4);
+    noStroke(); fill(255); ellipse(eyeX, eyeY, 12, 7);
+    fill(0); noStroke(); ellipse(eyeX, eyeY, 4, 4);
     if (!passwordVisible) { stroke(255); strokeWeight(2); line(eyeX - 6, eyeY - 6, eyeX + 6, eyeY + 6); }
 
+    // Row 2: HT | CTRL | MOB
     drawStyledButton(40, 96, 100, 26, "HT: " + (halftimeEnabled ? "ON" : "OFF"), color(50, 90, 140));
     drawStyledButton(150, 96, 100, 26, "CTRL: " + p1ControlMode, color(50, 90, 140));
     drawStyledButton(260, 96, 100, 26, mobileControlsEnabled ? "MOB: ON" : "MOB: OFF",
                      mobileControlsEnabled ? color(60, 140, 80) : color(50, 90, 140));
 
+    // Row 3: FPS | RETRO
+    drawStyledButton(40, 126, 155, 26, "FPS: " + (showFPS ? "ON" : "OFF"),
+                     showFPS ? color(60, 140, 80) : color(50, 90, 140));
+    drawStyledButton(205, 126, 155, 26, "RETRO: " + (retroMode ? "ON" : "OFF"),
+                     retroMode ? color(200, 120, 40) : color(50, 90, 140));
+
     if (keyboard.visible) { drawKeyboard(); return; }
 
     fill(20, 30, 45, 220); stroke(255, 100); strokeWeight(1.5);
-    rect(40, 130, 320, 195, 8);
+    rect(40, 162, 320, 165, 8);
     fill(255, 215, 0); textSize(12); textAlign(CENTER, CENTER);
-    text("ACHIEVEMENTS " + username, 200, 145);
+    text("ACHIEVEMENTS " + username, 200, 178);
 
-    drawAchievementBadge(165, "Brazil award", "Win by 6+ goals (e.g. 7-1)", achievements.brazilAward);
-    drawAchievementBadge(218, "Victory", "Win the World Cup", achievements.victory);
-    drawAchievementBadge(271, "Champion", "Win Cup on Easy, Medium & Hard", achievements.champion);
+    drawAchievementBadge(190, "Brazil award", "Win by 6+ goals (e.g. 7-1)", achievements.brazilAward);
+    drawAchievementBadge(243, "Victory", "Win the World Cup", achievements.victory);
+    drawAchievementBadge(296, "Champion", "Win Cup on Easy, Medium & Hard", achievements.champion);
 
     drawStyledButton(110, 340, 180, 34, "BACK TO MAIN MENU", color(180, 60, 60));
 };
@@ -1937,7 +1863,47 @@ var runPenaltyLoop = function() {
             if (progress >= 1) { evaluatePenaltyFrameResult(); }
         }
     }
-    drawingContext.drawImage(getPenaltyFieldCanvas(), 0, 0);
+
+    // Background depends on mode
+    if (retroMode) {
+        background(34, 139, 34);
+    } else {
+        // Simplified dark stadium backdrop
+        for (var y = 0; y < 130; y += 4) {
+            var t = y / 130;
+            var c = lerpColor(color(4, 6, 20), color(18, 32, 68), t);
+            noStroke(); fill(c);
+            rect(0, y, canvasWidth, 4);
+        }
+        for (var i = 0; i < 260; i++) {
+            var cx = (i * 61 + 11) % 400;
+            var cy = 6 + ((i * 43 + 5) % 118);
+            var cIdx = i % 5;
+            var col;
+            if (cIdx === 0) { col = color(200, 60, 60); }
+            else if (cIdx === 1) { col = color(60, 90, 200); }
+            else if (cIdx === 2) { col = color(230, 200, 80); }
+            else if (cIdx === 3) { col = color(90, 180, 110); }
+            else { col = color(220, 220, 220); }
+            fill(red(col), green(col), blue(col), 130);
+            noStroke(); ellipse(cx, cy, 3, 3);
+        }
+        for (var f = 0; f < 5; f++) {
+            var a = 40 - f * 7;
+            noStroke(); fill(255, 250, 200, a);
+            ellipse(60, 10, 140 - f * 26, 90 - f * 18);
+            ellipse(340, 10, 140 - f * 26, 90 - f * 18);
+        }
+        fill(20, 28, 48); noStroke(); rect(0, 0, canvasWidth, 6);
+        fill(28, 36, 55); rect(0, 128, canvasWidth, 10);
+        for (var y2 = 138; y2 < 260; y2 += 8) {
+            var t2 = map(y2, 138, 260, 0, 1);
+            stroke(lerpColor(color(24, 82, 34), color(46, 138, 58), t2));
+            strokeWeight(8); line(0, y2 + 4, canvasWidth, y2 + 4);
+        }
+        noStroke(); fill(255, 255, 200, 18);
+        triangle(0, 138, 400, 138, 200, 260);
+    }
 
     fill(0, 180); stroke(255, 100); strokeWeight(1.5);
     rect(80, 6, 240, 26, 8);
@@ -1946,12 +1912,23 @@ var runPenaltyLoop = function() {
     drawFlag(selectedCountry, 20, 10, 30, 18);
     drawFlag(aiCountry, 350, 10, 30, 18);
 
-    for (var i = 0; i < 5; i++) {
-        fill(p1PenScores[i] === 1 ? color(0, 255, 100) : (p1PenScores[i] === -1 ? color(255, 50, 50) : color(100)));
-        ellipse(60 + i * 14, 46, 10, 10);
-        fill(p2PenScores[i] === 1 ? color(0, 255, 100) : (p2PenScores[i] === -1 ? color(255, 50, 50) : color(100)));
-        ellipse(340 - i * 14, 46, 10, 10);
+    for (var pi = 0; pi < 5; pi++) {
+        fill(p1PenScores[pi] === 1 ? color(0, 255, 100) : (p1PenScores[pi] === -1 ? color(255, 50, 50) : color(100)));
+        ellipse(60 + pi * 14, 46, 10, 10);
+        fill(p2PenScores[pi] === 1 ? color(0, 255, 100) : (p2PenScores[pi] === -1 ? color(255, 50, 50) : color(100)));
+        ellipse(340 - pi * 14, 46, 10, 10);
     }
+
+    // Goal frame
+    var gx = 130, gy = 100, gw = 140, gh = 80;
+    fill(10, 14, 22, 200); noStroke(); rect(gx, gy, gw, gh);
+    stroke(220, 220, 220, 100); strokeWeight(1);
+    for (var gi = gx; gi <= gx + gw; gi += 8) { line(gi, gy, gi, gy + gh); }
+    for (var gj = gy; gj <= gy + gh; gj += 8) { line(gx, gj, gx + gw, gj); }
+    stroke(0, 0, 0, 160); strokeWeight(8); noFill();
+    rect(gx + 2, gy + 3, gw, gh);
+    stroke(240); strokeWeight(6); rect(gx, gy, gw, gh);
+    stroke(255); strokeWeight(2); rect(gx, gy, gw, gh);
 
     var goalieTeam = (penaltyTurn === 1) ? aiCountry : selectedCountry;
     var goalieLook = (penaltyTurn === 1) ? -1 : 1;
@@ -2087,6 +2064,7 @@ var mousePressed = function() {
             }
         }
     } else if (gameState === "SETTINGS") {
+        // Eye icon
         if (mouseX > 325 && mouseX < 349 && mouseY > 67 && mouseY < 91) { passwordVisible = !passwordVisible; return; }
         if (keyboard.visible) {
             if (handleKeyboardClick(mouseX, mouseY)) { return; }
@@ -2105,6 +2083,10 @@ var mousePressed = function() {
                 mobileControlsEnabled = !mobileControlsEnabled;
                 if (!mobileControlsEnabled) { closeKeyboard(); }
             }
+        }
+        if (mouseY > 126 && mouseY < 152) {
+            if (mouseX > 40 && mouseX < 195) { showFPS = !showFPS; }
+            else if (mouseX > 205 && mouseX < 360) { retroMode = !retroMode; }
         }
         if (mouseX > 110 && mouseX < 290 && mouseY > 340 && mouseY < 374) {
             if (username.trim().length === 0) { username = "Player"; }
@@ -2142,9 +2124,7 @@ var mousePressed = function() {
             if (tournamentRound <= 4) {
                 if (mouseX > 40 && mouseX < 190 && mouseY > 355 && mouseY < 387) { simulateCurrentRound(); }
                 if (mouseX > 210 && mouseX < 360 && mouseY > 355 && mouseY < 387) { gameState = "TITLE"; }
-            } else {
-                if (mouseX > 110 && mouseX < 290 && mouseY > 355 && mouseY < 387) { gameState = "TITLE"; }
-            }
+            } else { if (mouseX > 110 && mouseX < 290 && mouseY > 355 && mouseY < 387) { gameState = "TITLE"; } }
         } else {
             if (mouseX > 110 && mouseX < 290 && mouseY > 355 && mouseY < 390) {
                 setNextAiOpponent(); gameState = "MATCH_START";
@@ -2172,6 +2152,8 @@ var draw = function() {
         loadGameFromStorage();
     }
 
+    updateFPS();
+
     if (gameState === "TITLE") { drawTitleScreen(); }
     else if (gameState === "SETTINGS") { drawSettingsScreen(); }
     else if (gameState === "DIFFICULTY_SELECT") { drawDifficultyScreen(); }
@@ -2198,6 +2180,8 @@ var draw = function() {
     else if (gameState === "HALFTIME") { runHalftimeLoop(); }
     else if (gameState === "OVERTIME") { runGameLoop(); }
     else if (gameState === "PENALTIES") { runPenaltyLoop(); }
+
+    drawFPS();
 };
 
 // ============================================================
