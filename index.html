@@ -25,13 +25,7 @@
     - Light mode (default) + Dark mode (Settings > THEME)
     - Retro mode (separate, orthogonal to Light/Dark)
     - FPS counter shows automatically in modern modes
-    - Nutmeg: fast, low balls slip past defenders in Easy/Medium
     - Accounts, achievements and save games via localStorage
-
-  PERFORMANCE
-    - Countryballs and the ball are pre-rendered to offscreen sprites on
-      first use, then blitted each frame. This fixes the frame-rate drops
-      caused by complex flag patterns (e.g. the five stars on China).
 
   NOTES
     - All progress is stored locally in the browser (localStorage keys "CBS_*").
@@ -977,138 +971,50 @@ var drawFlag = function(idx, x, y, w, h) {
     pop();
 };
 
-// ============================================================
-// SPRITE CACHE  (the big FPS fix)
-//   Countryballs and balls are rendered once into offscreen
-//   p5.Graphics buffers, then blitted with image() each frame.
-//   This eliminates the per-pixel cost of complex flag patterns
-//   (China's five stars, Union Jacks, etc.) during gameplay.
-// ============================================================
-var countryballSprites = {};
-var ballSprites = {};
-var SPRITE_PAD = 3;
-
-var buildCountryballSprite = function(idx, radius) {
-    var size = ceil(radius * 2 + SPRITE_PAD * 2);
-    var g = createGraphics(size, size);
-    g.pixelDensity(1);
-    g.noStroke();
-    var cx = radius + SPRITE_PAD, cy = radius + SPRITE_PAD;
+// --- Countryball ---
+var drawCountryballScanlines = function(idx, radius) {
     var rSq = radius * radius;
     var step = 0.5;
     var bandHeight = 1.3;
+    var py, px, xSpan, rgb, r2, g2, b2, qr, qg, qb;
+    var lastR, lastG, lastB, segStart;
     var lx = -0.48, ly = -0.62, lz = 0.62;
-    for (var py = -radius; py <= radius; py += step) {
-        var xSpan = Math.sqrt(Math.max(0, rSq - py * py));
-        var lastR = -1, lastG = -1, lastB = -1;
-        var segStart = -xSpan;
-        for (var px = -xSpan; px <= xSpan; px += step) {
-            var rgb = getFlagRGB(idx, px / radius, py / radius);
+    for (py = -radius; py <= radius; py += step) {
+        xSpan = sqrt(max(0, rSq - py * py));
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = -xSpan;
+        for (px = -xSpan; px <= xSpan; px += step) {
+            rgb = getFlagRGB(idx, px / radius, py / radius);
             var nx = px / radius, ny = py / radius;
             var nzSq = 1 - nx * nx - ny * ny;
-            var nz = nzSq > 0 ? Math.sqrt(nzSq) : 0;
+            var nz = nzSq > 0 ? sqrt(nzSq) : 0;
             var diff = nx * lx + ny * ly + nz * lz;
             if (diff < 0) { diff = 0; }
             var intensity = (0.55 + 0.72 * diff) * (0.82 + 0.18 * nz);
-            var spec = Math.pow(diff, 34) * 1.1;
-            var r2 = rgb[0] * intensity + 255 * spec;
-            var g2 = rgb[1] * intensity + 255 * spec;
-            var b2 = rgb[2] * intensity + 255 * spec;
+            var spec = pow(diff, 34) * 1.1;
+            r2 = rgb[0] * intensity + 255 * spec;
+            g2 = rgb[1] * intensity + 255 * spec;
+            b2 = rgb[2] * intensity + 255 * spec;
             if (r2 > 255) { r2 = 255; } else if (r2 < 0) { r2 = 0; }
             if (g2 > 255) { g2 = 255; } else if (g2 < 0) { g2 = 0; }
             if (b2 > 255) { b2 = 255; } else if (b2 < 0) { b2 = 0; }
-            var qr = ((r2 / 12) | 0) * 12;
-            var qg = ((g2 / 12) | 0) * 12;
-            var qb = ((b2 / 12) | 0) * 12;
+            qr = (r2 / 12 | 0) * 12;
+            qg = (g2 / 12 | 0) * 12;
+            qb = (b2 / 12 | 0) * 12;
             if (qr !== lastR || qg !== lastG || qb !== lastB) {
                 if (lastR >= 0) {
-                    g.fill(lastR, lastG, lastB);
-                    g.rect(cx + segStart, cy + py, px - segStart, bandHeight);
+                    noStroke(); fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, bandHeight);
                 }
                 lastR = qr; lastG = qg; lastB = qb;
                 segStart = px;
             }
         }
         if (lastR >= 0) {
-            g.fill(lastR, lastG, lastB);
-            g.rect(cx + segStart, cy + py, xSpan - segStart, bandHeight);
+            noStroke(); fill(lastR, lastG, lastB);
+            rect(segStart, py, xSpan - segStart, bandHeight);
         }
     }
-    return g;
-};
-
-var getCountryballSprite = function(idx, radius) {
-    var r = Math.round(radius);
-    var key = idx + "_" + r;
-    if (!countryballSprites[key]) {
-        countryballSprites[key] = buildCountryballSprite(idx, r);
-    }
-    return countryballSprites[key];
-};
-
-var buildBallSprite = function(radius, flagIdx) {
-    var size = ceil(radius * 2 + SPRITE_PAD * 2);
-    var g = createGraphics(size, size);
-    g.pixelDensity(1);
-    g.noStroke();
-    var cx = radius + SPRITE_PAD, cy = radius + SPRITE_PAD;
-    var rSq = radius * radius;
-    var step = 0.5;
-    var bandHeight = 1.4;
-    var lx = -0.48, ly = -0.62, lz = 0.62;
-    for (var py = -radius; py <= radius; py += step) {
-        var xSpan = Math.sqrt(Math.max(0, rSq - py * py));
-        var lastR = -1, lastG = -1, lastB = -1;
-        var segStart = -xSpan;
-        for (var px = -xSpan; px <= xSpan; px += step) {
-            var nx = px / radius, ny = py / radius;
-            var rgb = (flagIdx >= 0) ? getFlagRGB(flagIdx, nx, ny) : soccerPatternRGB(nx, ny);
-            var nzSq = 1 - nx * nx - ny * ny;
-            var nz = nzSq > 0 ? Math.sqrt(nzSq) : 0;
-            var diff = nx * lx + ny * ly + nz * lz;
-            if (diff < 0) { diff = 0; }
-            var intensity = (0.55 + 0.72 * diff) * (0.82 + 0.18 * nz);
-            var spec = Math.pow(diff, 34) * 1.2;
-            var r2 = rgb[0] * intensity + 255 * spec;
-            var g2 = rgb[1] * intensity + 255 * spec;
-            var b2 = rgb[2] * intensity + 255 * spec;
-            if (r2 > 255) { r2 = 255; } else if (r2 < 0) { r2 = 0; }
-            if (g2 > 255) { g2 = 255; } else if (g2 < 0) { g2 = 0; }
-            if (b2 > 255) { b2 = 255; } else if (b2 < 0) { b2 = 0; }
-            var qr = ((r2 / 12) | 0) * 12;
-            var qg = ((g2 / 12) | 0) * 12;
-            var qb = ((b2 / 12) | 0) * 12;
-            if (qr !== lastR || qg !== lastG || qb !== lastB) {
-                if (lastR >= 0) {
-                    g.fill(lastR, lastG, lastB);
-                    g.rect(cx + segStart, cy + py, px - segStart, bandHeight);
-                }
-                lastR = qr; lastG = qg; lastB = qb;
-                segStart = px;
-            }
-        }
-        if (lastR >= 0) {
-            g.fill(lastR, lastG, lastB);
-            g.rect(cx + segStart, cy + py, xSpan - segStart, bandHeight);
-        }
-    }
-    return g;
-};
-
-var getBallSprite = function(radius, flagIdx) {
-    var r = Math.round(radius);
-    var key = r + "_" + flagIdx;
-    if (!ballSprites[key]) {
-        ballSprites[key] = buildBallSprite(r, flagIdx);
-    }
-    return ballSprites[key];
-};
-
-// --- Countryball (cached) ---
-var drawCountryballScanlines = function(idx, radius) {
-    var r = Math.round(radius);
-    var sprite = getCountryballSprite(idx, r);
-    image(sprite, -r - SPRITE_PAD, -r - SPRITE_PAD);
 };
 
 var drawCountryball = function(idx, x, y, radius, lookDir) {
@@ -1153,13 +1059,52 @@ var drawCountryball = function(idx, x, y, radius, lookDir) {
     pop();
 };
 
-// --- Ball (cached) ---
 var drawBallScanlines = function(x, y, radius, flagIdx) {
     push();
     translate(x, y);
-    var r = Math.round(radius);
-    var sprite = getBallSprite(r, flagIdx);
-    image(sprite, -r - SPRITE_PAD, -r - SPRITE_PAD);
+    var rSq = radius * radius;
+    var step = 0.5;
+    var bandHeight = 1.4;
+    var py, px, xSpan, rgb, r2, g2, b2, qr, qg, qb;
+    var lastR, lastG, lastB, segStart;
+    var lx = -0.48, ly = -0.62, lz = 0.62;
+    for (py = -radius; py <= radius; py += step) {
+        xSpan = sqrt(max(0, rSq - py * py));
+        lastR = -1; lastG = -1; lastB = -1;
+        segStart = -xSpan;
+        for (px = -xSpan; px <= xSpan; px += step) {
+            var nx = px / radius, ny = py / radius;
+            if (flagIdx >= 0) { rgb = getFlagRGB(flagIdx, nx, ny); }
+            else { rgb = soccerPatternRGB(nx, ny); }
+            var nzSq = 1 - nx * nx - ny * ny;
+            var nz = nzSq > 0 ? sqrt(nzSq) : 0;
+            var diff = nx * lx + ny * ly + nz * lz;
+            if (diff < 0) { diff = 0; }
+            var intensity = (0.55 + 0.72 * diff) * (0.82 + 0.18 * nz);
+            var spec = pow(diff, 34) * 1.2;
+            r2 = rgb[0] * intensity + 255 * spec;
+            g2 = rgb[1] * intensity + 255 * spec;
+            b2 = rgb[2] * intensity + 255 * spec;
+            if (r2 > 255) { r2 = 255; } else if (r2 < 0) { r2 = 0; }
+            if (g2 > 255) { g2 = 255; } else if (g2 < 0) { g2 = 0; }
+            if (b2 > 255) { b2 = 255; } else if (b2 < 0) { b2 = 0; }
+            qr = (r2 / 12 | 0) * 12;
+            qg = (g2 / 12 | 0) * 12;
+            qb = (b2 / 12 | 0) * 12;
+            if (qr !== lastR || qg !== lastG || qb !== lastB) {
+                if (lastR >= 0) {
+                    noStroke(); fill(lastR, lastG, lastB);
+                    rect(segStart, py, px - segStart, bandHeight);
+                }
+                lastR = qr; lastG = qg; lastB = qb;
+                segStart = px;
+            }
+        }
+        if (lastR >= 0) {
+            noStroke(); fill(lastR, lastG, lastB);
+            rect(segStart, py, xSpan - segStart, bandHeight);
+        }
+    }
     if (!retroMode) {
         noFill(); stroke(0); strokeWeight(1.4);
         ellipse(0, 0, radius * 2, radius * 2);
@@ -1642,6 +1587,7 @@ var continueAfterMatch = function() {
         if (inGroupStage) {
             playerMatchesPlayed++;
             if (playerMatchesPlayed >= 3) {
+                // Group complete — simulate the rest and compute standings
                 simulateRestOfGroups();
                 for (var g = 0; g < 12; g++) {
                     groups[g].standings = computeStandings(groups[g]);
@@ -1731,30 +1677,11 @@ var updateBall = function() {
     }
 };
 
-// ============================================================
-// COLLISION — with NUTMEG
-//   A fast, low ball can slip under a defender's legs in Easy
-//   and Medium (and in non-SINGLE modes). In Hard single-player,
-//   the collision stays solid — no nutmeg.
-// ============================================================
-var NUTMEG_MIN_SPEED = 3.0;   // |ball.vx| required to slip through
-var NUTMEG_LOW_FACTOR = 0.35; // ball must be in the lower part of the player circle
-
 var resolveCollision = function(p) {
     var dx = ball.x - p.x, dy = ball.y - p.y;
     var distance = sqrt(dx * dx + dy * dy);
     var minDist = p.radius + ball.radius;
     if (distance < minDist) {
-        var noNutmeg = (gameMode === "SINGLE" && difficulty === "HARD");
-        if (!noNutmeg) {
-            var ballIsLow = (ball.y > p.y + p.radius * NUTMEG_LOW_FACTOR);
-            var ballIsFast = (abs(ball.vx) > NUTMEG_MIN_SPEED);
-            if (ballIsLow && ballIsFast) {
-                // Nutmeg — let the ball pass through the legs
-                return;
-            }
-        }
-        // Normal solid collision response
         var angle = atan2(dy, dx);
         ball.x = p.x + cos(angle) * minDist;
         ball.y = p.y + sin(angle) * minDist;
@@ -1900,6 +1827,7 @@ var drawPitchDark = function() {
     rect(canvasWidth - goalWidth, 350 - goalHeight, goalWidth, goalHeight);
 };
 
+// Light mode keeps the stadium architecture but softer, muted daylight palette
 var drawPitchLight = function() {
     var y, i;
     for (y = 0; y < 88; y += 4) {
@@ -2284,6 +2212,7 @@ var drawGroupsScreen = function() {
     var grp = groups[playerGroupIdx];
     var standings = grp.standings || computeStandings(grp);
 
+    // Header row
     fill(theme.panel); noStroke();
     rect(16, 40, 368, 20);
     fill(theme.gold); textSize(8); textAlign(LEFT, CENTER);
@@ -2296,6 +2225,7 @@ var drawGroupsScreen = function() {
     text("GD", 312, 50);
     text("Pts", 350, 50);
 
+    // Rows
     for (var i = 0; i < 4; i++) {
         var row = standings[i];
         var ry = 64 + i * 26;
@@ -2320,6 +2250,7 @@ var drawGroupsScreen = function() {
         text(row.pts, 350, ry + 12);
     }
 
+    // Player's other results (2 non-player matches per round robin)
     fill(theme.textSoft); textSize(8); textAlign(LEFT, CENTER);
     text("Your matches:", 20, 190);
     textSize(9); textAlign(LEFT, CENTER);
@@ -2332,6 +2263,7 @@ var drawGroupsScreen = function() {
         text("vs " + tournamentTeams[opp] + "   " + resStr, 30, 206 + m * 14);
     }
 
+    // Continue button
     if (playerMatchesPlayed < 3) {
         drawStyledButton(110, 265, 180, 38, "PLAY NEXT MATCH", color(40, 140, 60));
     } else {
@@ -2463,6 +2395,7 @@ var drawBracketScreen = function() {
     var y4 = startY + 7.5 * sp;
     drawBracketMatchNode(colX[4], y4, nw, nh, bracket.r4[0]);
 
+    // Bottom action panel
     fill(theme.panel); noStroke(); rect(0, 348, canvasWidth, 52);
     stroke(theme.panelStroke); strokeWeight(1); line(0, 348, canvasWidth, 348);
     noStroke();
@@ -2717,7 +2650,6 @@ var drawDifficultyScreen = function() {
     drawStyledButton(110, 280, 180, 35, "CONTINUE", color(40, 140, 60));
     fill(theme.textSoft); textSize(9); textAlign(CENTER, CENTER);
     if (mobileControlsEnabled) { text("Mobile controls on - AI eased a little.", 200, 335); }
-    text("Nutmeg (ball through the legs) works in Easy / Medium.", 200, 350);
 };
 
 var drawSettingsScreen = function() {
@@ -2752,6 +2684,7 @@ var drawSettingsScreen = function() {
     drawStyledButton(260, 96, 100, 26, mobileControlsEnabled ? "MOB: ON" : "MOB: OFF",
                      mobileControlsEnabled ? color(60, 140, 80) : color(50, 90, 140));
 
+    // FPS removed from settings — it's automatic now.
     drawStyledButton(40, 126, 320, 26, "RETRO: " + (retroMode ? "ON" : "OFF"),
                      retroMode ? color(200, 120, 40) : color(50, 90, 140));
     drawStyledButton(40, 156, 320, 26,
@@ -3292,14 +3225,14 @@ var mousePressed = function() {
                 gameState = "MATCH_START";
             } else {
                 var qualified = determineQualifiers();
-                fillKnockoutBracket(qualified);
+                fillBracketFromQualifiers(qualified);
                 inGroupStage = false;
                 gameState = "BRACKET";
             }
         } else if (mouseX > 110 && mouseX < 290 && mouseY > 278 && mouseY < 316) {
             if (playerMatchesPlayed >= 3) {
                 var qualified2 = determineQualifiers();
-                fillKnockoutBracket(qualified2);
+                fillBracketFromQualifiers(qualified2);
                 inGroupStage = false;
                 gameState = "BRACKET";
             }
@@ -3328,6 +3261,12 @@ var mousePressed = function() {
             gameState = "PLAYING";
         }
     }
+};
+
+// Helper: since the group screen uses different y than bracket, this matches
+// the "CONTINUE TO KNOCKOUTS" button row when the player qualified.
+var fillBracketFromQualifiers = function(qualified) {
+    fillKnockoutBracket(qualified);
 };
 
 var mouseReleased = function() { releaseJoystick(); };
