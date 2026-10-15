@@ -3,59 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Countryball Soccer 2026</title>
-<!--
-  ============================================================================
-  COUNTRYBALL SOCCER 2026
-  ----------------------------------------------------------------------------
-  Single-file HTML5 game. No build step, no server, no dependencies except the
-  p5.js CDN and Google Fonts. Drop this file into any GitHub repo and enable
-  GitHub Pages (Settings > Pages > Deploy from branch > main / root).
-
-  UI ARCHITECTURE
-    - The pitch, countryballs, ball, bracket and country grid are drawn on the
-      p5 canvas (procedural flags need per-pixel rendering).
-    - All menus, HUD, dialogs and settings are native HTML + CSS layered above
-      the canvas. This gives crisp typography, real input fields, and proper
-      focus/keyboard accessibility.
-
-  THEME
-    - Light: cool, clean daylight stadium
-    - Dark: deep midnight blue with warm amber accents — never black
-    - Retro: orthogonal to both (classic arcade look)
-
-  TOURNAMENT
-    - 48 nations, 12 groups of 4, top 2 + 8 best 3rd-placed = 32 qualifiers
-    - Round of 32 -> R16 -> QF -> SF -> Final
-
-  NUTMEG RULES
-    - Easy / Medium single player: player can nutmeg the AI
-    - AI can never nutmeg the player
-    - Hard: no nutmeg for either side
-    - Retro: no nutmeg at all
-    - Local 2P: both humans can nutmeg each other
-  ============================================================================
--->
+<title>Head Soccer v4.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-/* =========================================================================
-   THEME TOKENS
-   ========================================================================= */
 :root {
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --radius-xl: 1.35em;
   --radius-lg: 1em;
   --radius-md: 0.7em;
-  --radius-sm: 0.5em;
   --ease: cubic-bezier(.22, .9, .35, 1);
   --ease-out: cubic-bezier(.16, 1, .3, 1);
 }
 
 [data-theme="light"] {
   --bg: #eaf0f9;
-  --bg-rgb: 234, 240, 249;
   --overlay: rgba(240, 245, 251, .82);
   --surface: #ffffff;
   --surface-2: #f4f8fe;
@@ -63,15 +26,12 @@
   --border: #d2ddee;
   --border-strong: #b6c5dc;
   --text: #16223a;
-  --text-dim: #556party;
   --text-dim: #556a89;
   --text-mute: #8c9bb3;
   --primary: #2563eb;
   --primary-hi: #3b82f6;
-  --primary-lo: #1d4ed8;
   --accent: #f59e0b;
   --accent-hi: #fbbf24;
-  --accent-lo: #d97706;
   --success: #059669;
   --success-hi: #10b981;
   --danger: #dc2626;
@@ -83,13 +43,10 @@
   --track: #dbe5f2;
   --track-on: #2563eb;
   --knob: #ffffff;
-  --scrim: rgba(20, 30, 50, .28);
 }
 
 [data-theme="dark"] {
-  /* Non-depressing: deep navy + warm accents + soft lift */
   --bg: #0c1322;
-  --bg-rgb: 12, 19, 34;
   --overlay: rgba(12, 19, 34, .78);
   --surface: #16213a;
   --surface-2: #1c2a48;
@@ -101,10 +58,8 @@
   --text-mute: #6b7ea1;
   --primary: #5b8dfa;
   --primary-hi: #7ba5ff;
-  --primary-lo: #3f6fd8;
   --accent: #fbbf24;
   --accent-hi: #fcd34d;
-  --accent-lo: #d99a08;
   --success: #34d399;
   --success-hi: #5eead4;
   --danger: #f87171;
@@ -116,13 +71,11 @@
   --track: #223153;
   --track-on: #5b8dfa;
   --knob: #ffffff;
-  --scrim: rgba(6, 10, 20, .55);
 }
 
-/* =========================================================================
-   BASE
-   ========================================================================= */
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0; padding: 0;
   height: 100%; width: 100%;
@@ -135,10 +88,7 @@ html, body {
   -webkit-touch-callout: none;
   touch-action: none; overscroll-behavior: none;
 }
-body {
-  display: grid;
-  place-items: center;
-}
+body { display: grid; place-items: center; }
 
 #stage {
   position: relative;
@@ -151,603 +101,142 @@ body {
   transition: background .3s var(--ease);
   isolation: isolate;
 }
-
 #game {
   position: absolute; inset: 0;
   width: 100% !important; height: 100% !important;
   display: block;
   z-index: 0;
+  touch-action: none;
 }
-
-#ui {
-  position: absolute; inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  font-family: var(--font);
-}
+#ui { position: absolute; inset: 0; pointer-events: none; z-index: 1; font-family: var(--font); }
 #ui > * { pointer-events: auto; }
 
-/* =========================================================================
-   BUTTONS
-   ========================================================================= */
 .btn {
-  --btn-bg: var(--surface);
-  --btn-fg: var(--text);
-  --btn-bd: var(--border);
-  --btn-shadow: var(--shadow-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .5em;
-  padding: .85em 1.15em;
-  font: inherit;
-  font-weight: 600;
-  font-size: .95em;
-  letter-spacing: .01em;
-  color: var(--btn-fg);
-  background: var(--btn-bg);
-  border: 1px solid var(--btn-bd);
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: .5em; padding: .85em 1.15em;
+  font: inherit; font-weight: 600; font-size: .95em;
+  color: var(--btn-fg, var(--text));
+  background: var(--btn-bg, var(--surface));
+  border: 1px solid var(--btn-bd, var(--border));
   border-radius: var(--radius-md);
-  box-shadow: var(--btn-shadow);
-  cursor: pointer;
-  transition: transform .12s var(--ease),
-              box-shadow .18s var(--ease),
-              background .18s var(--ease),
-              border-color .18s var(--ease);
-  white-space: nowrap;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-.btn:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
-}
-.btn:focus-visible {
-  box-shadow: var(--shadow-md), 0 0 0 3px var(--ring);
-}
-.btn-lg {
-  padding: 1em 1.25em;
-  font-size: 1em;
-  font-weight: 700;
-  border-radius: var(--radius-lg);
-}
-.btn-primary {
-  --btn-bg: linear-gradient(180deg, var(--primary-hi), var(--primary));
-  --btn-fg: #fff;
-  --btn-bd: transparent;
-  --btn-shadow: 0 6px 16px rgba(37,99,235,.32), inset 0 1px 0 rgba(255,255,255,.22);
-}
-.btn-primary:hover {
-  --btn-bg: linear-gradient(180deg, #5b9cff, var(--primary-hi));
-}
-.btn-blue {
-  --btn-bg: linear-gradient(180deg, #4f86ea, #2e5cc4);
-  --btn-fg: #fff;
-  --btn-bd: transparent;
-  --btn-shadow: 0 6px 16px rgba(46,92,196,.32), inset 0 1px 0 rgba(255,255,255,.22);
-}
-.btn-accent {
-  --btn-bg: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  --btn-fg: #1f1300;
-  --btn-bd: transparent;
-  --btn-shadow: 0 6px 16px rgba(245,158,11,.34), inset 0 1px 0 rgba(255,255,255,.35);
-}
-.btn-danger {
-  --btn-bg: linear-gradient(180deg, var(--danger-hi), var(--danger));
-  --btn-fg: #fff;
-  --btn-bd: transparent;
-  --btn-shadow: 0 6px 16px rgba(220,38,38,.32), inset 0 1px 0 rgba(255,255,255,.22);
-}
-.btn-ghost {
-  --btn-bg: transparent;
-  --btn-bd: var(--border);
-  --btn-shadow: none;
-}
-.btn-ghost:hover {
-  --btn-bg: var(--surface-2);
-}
-.btn:disabled,
-.btn[disabled] {
-  opacity: .45;
-  cursor: not-allowed;
-  transform: none !important;
-  box-shadow: var(--shadow-sm) !important;
-}
-.btn .icon {
-  width: 1.1em; height: 1.1em;
-  flex: 0 0 auto;
-  stroke: currentColor; fill: none;
-  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-}
-
-.icon-btn {
-  display: inline-grid;
-  place-items: center;
-  width: 2.4em; height: 2.4em;
-  padding: 0;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--btn-shadow, var(--shadow-sm));
   cursor: pointer;
   transition: transform .12s var(--ease), box-shadow .18s var(--ease),
               background .18s var(--ease), border-color .18s var(--ease);
-  outline: none;
+  white-space: nowrap; outline: none;
   -webkit-tap-highlight-color: transparent;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
+.btn:focus-visible { box-shadow: var(--shadow-md), 0 0 0 3px var(--ring); }
+.btn-lg { padding: 1em 1.25em; font-size: 1em; font-weight: 700; border-radius: var(--radius-lg); }
+.btn-primary { --btn-bg: linear-gradient(180deg, var(--primary-hi), var(--primary)); --btn-fg: #fff; --btn-bd: transparent; --btn-shadow: 0 6px 16px rgba(37,99,235,.32), inset 0 1px 0 rgba(255,255,255,.22); }
+.btn-blue { --btn-bg: linear-gradient(180deg, #4f86ea, #2e5cc4); --btn-fg: #fff; --btn-bd: transparent; --btn-shadow: 0 6px 16px rgba(46,92,196,.32), inset 0 1px 0 rgba(255,255,255,.22); }
+.btn-accent { --btn-bg: linear-gradient(180deg, var(--accent-hi), var(--accent)); --btn-fg: #1f1300; --btn-bd: transparent; --btn-shadow: 0 6px 16px rgba(245,158,11,.34), inset 0 1px 0 rgba(255,255,255,.35); }
+.btn-danger { --btn-bg: linear-gradient(180deg, var(--danger-hi), var(--danger)); --btn-fg: #fff; --btn-bd: transparent; --btn-shadow: 0 6px 16px rgba(220,38,38,.32), inset 0 1px 0 rgba(255,255,255,.22); }
+.btn-ghost { --btn-bg: transparent; --btn-bd: var(--border); --btn-shadow: none; }
+.btn-ghost:hover { --btn-bg: var(--surface-2); }
+.btn .icon { width: 1.1em; height: 1.1em; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.icon-btn {
+  display: inline-grid; place-items: center;
+  width: 2.4em; height: 2.4em; padding: 0;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: transform .12s var(--ease), box-shadow .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease);
+  outline: none; -webkit-tap-highlight-color: transparent;
 }
 .icon-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .icon-btn:active { transform: translateY(0); }
 .icon-btn:focus-visible { box-shadow: 0 0 0 3px var(--ring); }
-.icon-btn svg {
-  width: 1.1em; height: 1.1em;
-  stroke: currentColor; fill: none;
-  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-}
-.icon-btn.solid {
-  width: 2.8em; height: 2.8em;
-  background: rgba(0,0,0,.42);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-color: rgba(255,255,255,.22);
-  color: #fff;
-}
-.icon-btn.solid:hover {
-  background: rgba(0,0,0,.58);
-  border-color: rgba(255,255,255,.4);
-}
+.icon-btn svg { width: 1.1em; height: 1.1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn.solid { width: 2.8em; height: 2.8em; background: rgba(0,0,0,.42); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-color: rgba(255,255,255,.22); color: #fff; }
+.icon-btn.solid:hover { background: rgba(0,0,0,.58); border-color: rgba(255,255,255,.4); }
 
-/* =========================================================================
-   SCREENS / PANELS
-   ========================================================================= */
-.screen {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 4%;
-  background: var(--overlay);
-  backdrop-filter: blur(10px) saturate(1.15);
-  -webkit-backdrop-filter: blur(10px) saturate(1.15);
-  animation: screenIn .22s var(--ease-out);
-  z-index: 3;
-}
-@keyframes screenIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+.screen { position: absolute; inset: 0; display: grid; place-items: center; padding: 4%; background: var(--overlay); backdrop-filter: blur(10px) saturate(1.15); -webkit-backdrop-filter: blur(10px) saturate(1.15); animation: screenIn .22s var(--ease-out); z-index: 3; }
+@keyframes screenIn { from { opacity: 0; } to { opacity: 1; } }
 .screen[hidden] { display: none !important; }
 
-.panel {
-  width: 100%;
-  max-width: 26em;
-  padding: 1.6em 1.5em;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  animation: panelIn .28s var(--ease-out);
-  display: flex;
-  flex-direction: column;
-  gap: 1em;
-}
+.panel { width: 100%; max-width: 26em; padding: 1.6em 1.5em; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); animation: panelIn .28s var(--ease-out); display: flex; flex-direction: column; gap: 1em; }
 .panel-wide { max-width: 30em; }
 .panel-tall { max-height: 92%; overflow-y: auto; }
-@keyframes panelIn {
-  from { opacity: 0; transform: translateY(.6em) scale(.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+@keyframes panelIn { from { opacity: 0; transform: translateY(.6em) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .panel::-webkit-scrollbar { width: .4em; }
 .panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1em; }
 
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1em;
-  margin-bottom: .25em;
-}
-.panel-header h2 {
-  margin: 0;
-  font-size: 1.15em;
-  font-weight: 800;
-  letter-spacing: -.01em;
-}
+.panel-header { display: flex; align-items: center; justify-content: space-between; gap: 1em; margin-bottom: .25em; }
+.panel-header h2 { margin: 0; font-size: 1.15em; font-weight: 800; letter-spacing: -.01em; }
 
-/* =========================================================================
-   BRAND / TITLE
-   ========================================================================= */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: .85em;
-  padding-bottom: 1em;
-  border-bottom: 1px solid var(--border);
-}
-.brand-mark {
-  flex: 0 0 auto;
-  width: 3em; height: 3em;
-  display: grid;
-  place-items: center;
-  font-size: 1.4em;
-  border-radius: 1em;
-  background:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,.5), transparent 55%),
-    linear-gradient(150deg, #34d399, #2563eb 55%, #7c3aed);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.35),
-              0 8px 22px rgba(37,99,235,.35);
-  color: #fff;
-}
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-.brand-text h1 {
-  margin: 0;
-  font-size: 1.2em;
-  font-weight: 900;
-  letter-spacing: -.02em;
-}
-.brand-year {
-  font-size: .8em;
-  font-weight: 700;
-  letter-spacing: .22em;
-  color: var(--accent);
-  margin-top: .25em;
-}
+.brand { display: flex; align-items: center; gap: .85em; padding-bottom: 1em; border-bottom: 1px solid var(--border); }
+.brand-mark { flex: 0 0 auto; width: 3em; height: 3em; display: grid; place-items: center; font-size: 1.4em; border-radius: 1em; background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.5), transparent 55%), linear-gradient(150deg, #34d399, #2563eb 55%, #7c3aed); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 8px 22px rgba(37,99,235,.35); color: #fff; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-text h1 { margin: 0; font-size: 1.2em; font-weight: 900; letter-spacing: -.02em; }
+.brand-year { font-size: .8em; font-weight: 700; letter-spacing: .22em; color: var(--accent); margin-top: .25em; }
 
-.greeting {
-  margin: 0;
-  font-size: .9em;
-  color: var(--text-dim);
-  text-align: center;
-}
+.greeting { margin: 0; font-size: .9em; color: var(--text-dim); text-align: center; }
 .greeting strong { color: var(--text); font-weight: 700; }
 
-.menu {
-  display: flex;
-  flex-direction: column;
-  gap: .6em;
-}
-.footer-note {
-  margin: 0;
-  text-align: center;
-  font-size: .72em;
-  color: var(--text-mute);
-  letter-spacing: .02em;
-}
+.menu { display: flex; flex-direction: column; gap: .6em; }
+.footer-note { margin: 0; text-align: center; font-size: .72em; color: var(--text-mute); letter-spacing: .02em; }
 
-/* =========================================================================
-   HUD
-   ========================================================================= */
-.hud {
-  position: absolute;
-  top: 3.5%;
-  left: 50%;
-  transform: translateX(-50%);
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: .6em;
-  width: 86%;
-  max-width: 92%;
-  padding: .55em .8em;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  z-index: 2;
-  font-variant-numeric: tabular-nums;
-}
+.hud { position: absolute; top: 3.5%; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .6em; width: 86%; max-width: 92%; padding: .55em .8em; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); z-index: 2; font-variant-numeric: tabular-nums; }
 .hud[hidden] { display: none; }
-.hud-side {
-  display: flex;
-  align-items: center;
-  gap: .45em;
-  min-width: 0;
-}
+.hud-side { display: flex; align-items: center; gap: .45em; min-width: 0; }
 .hud-left { justify-content: flex-start; }
 .hud-right { justify-content: flex-end; }
-.hud-name {
-  font-size: .82em;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 7em;
-}
-.hud-chip {
-  flex: 0 0 auto;
-  width: 1.9em; height: 1.25em;
-  border-radius: .3em;
-  background-color: var(--surface-3);
-  background-size: cover;
-  background-position: center;
-  border: 1px solid var(--border);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.15);
-}
-.hud-center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .1em;
-  padding: 0 .35em;
-}
-.hud-score {
-  display: flex;
-  align-items: baseline;
-  gap: .35em;
-  font-size: 1.35em;
-  font-weight: 900;
-  letter-spacing: -.02em;
-  line-height: 1;
-}
+.hud-name { font-size: .82em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 7em; }
+.hud-chip { flex: 0 0 auto; width: 1.9em; height: 1.25em; border-radius: .3em; background-color: var(--surface-3); background-size: cover; background-position: center; border: 1px solid var(--border); box-shadow: inset 0 1px 0 rgba(255,255,255,.15); }
+.hud-center { display: flex; flex-direction: column; align-items: center; gap: .1em; padding: 0 .35em; }
+.hud-score { display: flex; align-items: baseline; gap: .35em; font-size: 1.35em; font-weight: 900; letter-spacing: -.02em; line-height: 1; }
 .hud-dash { color: var(--text-mute); font-weight: 700; }
-.hud-clock {
-  font-size: .68em;
-  font-weight: 600;
-  color: var(--accent);
-  letter-spacing: .04em;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
+.hud-clock { font-size: .68em; font-weight: 600; color: var(--accent); letter-spacing: .04em; white-space: nowrap; text-transform: uppercase; }
 
-#pause-button {
-  position: absolute;
-  top: 3.5%;
-  right: 3.5%;
-  z-index: 2;
-}
+#pause-button { position: absolute; top: 3.5%; right: 3.5%; z-index: 2; }
 #pause-button[hidden] { display: none; }
 
-/* =========================================================================
-   FORM FIELDS
-   ========================================================================= */
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: .65em;
-}
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: .3em;
-}
-.field-label {
-  font-size: .72em;
-  font-weight: 700;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-.field input {
-  width: 100%;
-  padding: .75em .9em;
-  font: inherit;
-  font-weight: 500;
-  font-size: .95em;
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  outline: none;
-  transition: border-color .15s var(--ease), box-shadow .15s var(--ease), background .15s var(--ease);
-  -webkit-appearance: none; appearance: none;
-}
+.field-group { display: flex; flex-direction: column; gap: .65em; }
+.field { display: flex; flex-direction: column; gap: .3em; }
+.field-label { font-size: .72em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
+.field input { width: 100%; padding: .75em .9em; font: inherit; font-weight: 500; font-size: .95em; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); outline: none; transition: border-color .15s var(--ease), box-shadow .15s var(--ease), background .15s var(--ease); -webkit-appearance: none; appearance: none; }
 .field input:hover { border-color: var(--border-strong); }
-.field input:focus {
-  border-color: var(--primary);
-  background: var(--surface);
-  box-shadow: 0 0 0 3px var(--ring);
-}
-.field input::placeholder { color: var(--text-mute); }
-.input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
+.field input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px var(--ring); }
+.input-wrap { position: relative; display: flex; align-items: center; }
 .input-wrap input { padding-right: 3em; }
-.input-wrap .icon-btn.inline {
-  position: absolute;
-  right: .3em;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2em; height: 2em;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  color: var(--text-dim);
-}
-.input-wrap .icon-btn.inline:hover {
-  background: var(--surface-3);
-  color: var(--text);
-  transform: translateY(-50%);
-}
+.input-wrap .icon-btn.inline { position: absolute; right: .3em; top: 50%; transform: translateY(-50%); width: 2em; height: 2em; background: transparent; border: none; box-shadow: none; color: var(--text-dim); }
+.input-wrap .icon-btn.inline:hover { background: var(--surface-3); color: var(--text); transform: translateY(-50%); }
 
-/* =========================================================================
-   TOGGLE SWITCHES
-   ========================================================================= */
-.toggle-list {
-  display: flex;
-  flex-direction: column;
-  gap: .45em;
-  padding: .35em 0;
-}
-.toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1em;
-  padding: .55em .85em;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background .15s var(--ease), border-color .15s var(--ease);
-  user-select: none;
-}
-.toggle:hover {
-  background: var(--surface-3);
-  border-color: var(--border-strong);
-}
+.toggle-list { display: flex; flex-direction: column; gap: .45em; padding: .35em 0; }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 1em; padding: .55em .85em; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: background .15s var(--ease), border-color .15s var(--ease); user-select: none; }
+.toggle:hover { background: var(--surface-3); border-color: var(--border-strong); }
 .toggle input { position: absolute; opacity: 0; pointer-events: none; }
-.toggle-label {
-  font-size: .85em;
-  font-weight: 600;
-  color: var(--text);
-}
-.toggle-value {
-  font-size: .75em;
-  font-weight: 700;
-  color: var(--text-dim);
-  letter-spacing: .05em;
-  margin-right: .5em;
-}
-.switch {
-  flex: 0 0 auto;
-  position: relative;
-  width: 2.4em;
-  height: 1.3em;
-  background: var(--track);
-  border-radius: 1em;
-  transition: background .2s var(--ease);
-}
-.switch::after {
-  content: '';
-  position: absolute;
-  top: 50%; left: .15em;
-  width: 1em; height: 1em;
-  background: var(--knob);
-  border-radius: 50%;
-  transform: translateY(-50%);
-  box-shadow: 0 1px 3px rgba(0,0,0,.25);
-  transition: transform .22s var(--ease);
-}
+.toggle-label { font-size: .85em; font-weight: 600; color: var(--text); }
+.switch { flex: 0 0 auto; position: relative; width: 2.4em; height: 1.3em; background: var(--track); border-radius: 1em; transition: background .2s var(--ease); }
+.switch::after { content: ''; position: absolute; top: 50%; left: .15em; width: 1em; height: 1em; background: var(--knob); border-radius: 50%; transform: translateY(-50%); box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .22s var(--ease); }
 .toggle input:checked ~ .switch { background: var(--track-on); }
 .toggle input:checked ~ .switch::after { transform: translate(1.1em, -50%); }
 .toggle input:focus-visible ~ .switch { box-shadow: 0 0 0 3px var(--ring); }
 
-/* =========================================================================
-   SEGMENTED CONTROL
-   ========================================================================= */
-.seg {
-  display: inline-flex;
-  padding: .2em;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  gap: .15em;
-}
-.seg button {
-  flex: 1;
-  padding: .55em .9em;
-  font: inherit;
-  font-size: .82em;
-  font-weight: 700;
-  color: var(--text-dim);
-  background: transparent;
-  border: none;
-  border-radius: calc(var(--radius-md) - .15em);
-  cursor: pointer;
-  transition: background .15s var(--ease), color .15s var(--ease), box-shadow .15s var(--ease);
-}
+.seg { display: inline-flex; padding: .2em; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); gap: .15em; }
+.seg button { flex: 1; padding: .55em .9em; font: inherit; font-size: .82em; font-weight: 700; color: var(--text-dim); background: transparent; border: none; border-radius: calc(var(--radius-md) - .15em); cursor: pointer; transition: background .15s var(--ease), color .15s var(--ease), box-shadow .15s var(--ease); }
 .seg button:hover { color: var(--text); }
-.seg button[aria-pressed="true"] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 
-/* =========================================================================
-   ACHIEVEMENT BADGES
-   ========================================================================= */
-.ach-list {
-  display: flex;
-  flex-direction: column;
-  gap: .45em;
-}
-.ach {
-  display: flex;
-  align-items: center;
-  gap: .8em;
-  padding: .7em .85em;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  transition: border-color .15s var(--ease), background .15s var(--ease);
-}
-.ach-badge {
-  flex: 0 0 auto;
-  width: 2.4em; height: 2.4em;
-  border-radius: .75em;
-  display: grid;
-  place-items: center;
-  background: var(--surface-3);
-  color: var(--text-mute);
-  font-size: 1.1em;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
-}
+.ach-list { display: flex; flex-direction: column; gap: .45em; }
+.ach { display: flex; align-items: center; gap: .8em; padding: .7em .85em; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); transition: border-color .15s var(--ease), background .15s var(--ease); }
+.ach-badge { flex: 0 0 auto; width: 2.4em; height: 2.4em; border-radius: .75em; display: grid; place-items: center; background: var(--surface-3); color: var(--text-mute); font-size: 1.1em; box-shadow: inset 0 1px 0 rgba(255,255,255,.1); }
 .ach.unlocked { border-color: color-mix(in srgb, var(--success) 40%, var(--border)); background: color-mix(in srgb, var(--success) 8%, var(--surface-2)); }
-.ach.unlocked .ach-badge {
-  background: linear-gradient(160deg, var(--success-hi), var(--success));
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(16,185,129,.4), inset 0 1px 0 rgba(255,255,255,.3);
-}
+.ach.unlocked .ach-badge { background: linear-gradient(160deg, var(--success-hi), var(--success)); color: #fff; box-shadow: 0 4px 12px rgba(16,185,129,.4), inset 0 1px 0 rgba(255,255,255,.3); }
 .ach-text { display: flex; flex-direction: column; gap: .15em; min-width: 0; }
 .ach-title { font-size: .88em; font-weight: 700; }
 .ach-desc { font-size: .72em; color: var(--text-dim); line-height: 1.35; }
 
-/* =========================================================================
-   DIFFICULTY CARDS
-   ========================================================================= */
-.diff-list {
-  display: flex;
-  flex-direction: column;
-  gap: .55em;
-}
-.diff-card {
-  display: flex;
-  align-items: center;
-  gap: .9em;
-  padding: .9em 1em;
-  background: var(--surface-2);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  text-align: left;
-  color: var(--text);
-  font: inherit;
-  transition: transform .12s var(--ease), border-color .15s var(--ease),
-              background .15s var(--ease), box-shadow .15s var(--ease);
-  outline: none;
-}
-.diff-card:hover {
-  transform: translateY(-1px);
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-}
+.diff-list { display: flex; flex-direction: column; gap: .55em; }
+.diff-card { display: flex; align-items: center; gap: .9em; padding: .9em 1em; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; text-align: left; color: var(--text); font: inherit; transition: transform .12s var(--ease), border-color .15s var(--ease), background .15s var(--ease), box-shadow .15s var(--ease); outline: none; }
+.diff-card:hover { transform: translateY(-1px); border-color: var(--border-strong); box-shadow: var(--shadow-md); }
 .diff-card:focus-visible { box-shadow: 0 0 0 3px var(--ring); }
-.diff-card[aria-pressed="true"] {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 10%, var(--surface-2));
-  box-shadow: 0 0 0 3px var(--ring), var(--shadow-md);
-}
-.diff-dot {
-  flex: 0 0 auto;
-  width: 2.4em; height: 2.4em;
-  border-radius: .8em;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  color: #fff;
-  font-size: 1em;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
-}
+.diff-card[aria-pressed="true"] { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--surface-2)); box-shadow: 0 0 0 3px var(--ring), var(--shadow-md); }
+.diff-dot { flex: 0 0 auto; width: 2.4em; height: 2.4em; border-radius: .8em; display: grid; place-items: center; font-weight: 900; color: #fff; font-size: 1em; box-shadow: inset 0 1px 0 rgba(255,255,255,.3); }
 .diff-dot.easy { background: linear-gradient(160deg, #34d399, #059669); }
 .diff-dot.medium { background: linear-gradient(160deg, #fbbf24, #d97706); }
 .diff-dot.hard { background: linear-gradient(160deg, #f87171, #b91c1c); }
@@ -755,77 +244,21 @@ body {
 .diff-title { font-size: .95em; font-weight: 800; }
 .diff-sub { font-size: .74em; color: var(--text-dim); line-height: 1.35; }
 
-/* =========================================================================
-   RESULT SCREEN (MATCH END)
-   ========================================================================= */
-.result {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .9em;
-  text-align: center;
-}
-.result-badge {
-  display: inline-block;
-  padding: .35em .9em;
-  font-size: .72em;
-  font-weight: 800;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  background: var(--surface-3);
-  color: var(--text-dim);
-}
+.result { display: flex; flex-direction: column; align-items: center; gap: .9em; text-align: center; }
+.result-badge { display: inline-block; padding: .35em .9em; font-size: .72em; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; border-radius: 999px; background: var(--surface-3); color: var(--text-dim); }
 .result-badge.win { background: color-mix(in srgb, var(--success) 22%, transparent); color: var(--success); }
 .result-badge.loss { background: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--danger); }
 .result-badge.draw { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
-
-.result-name {
-  margin: 0;
-  font-size: 1.55em;
-  font-weight: 900;
-  line-height: 1.15;
-  letter-spacing: -.02em;
-}
-.result-name.win {
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+.result-name { margin: 0; font-size: 1.55em; font-weight: 900; line-height: 1.15; letter-spacing: -.02em; }
+.result-name.win { background: linear-gradient(180deg, var(--accent-hi), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .result-name.loss { color: var(--danger); }
 .result-name.draw { color: var(--accent); }
+.result-score { font-size: 1.05em; font-weight: 800; letter-spacing: .04em; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 
-.result-score {
-  font-size: 1.05em;
-  font-weight: 800;
-  letter-spacing: .04em;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-dim);
-}
-
-/* =========================================================================
-   TOAST / SMALL INFO
-   ========================================================================= */
-.hint {
-  margin: 0;
-  font-size: .72em;
-  color: var(--text-dim);
-  text-align: center;
-  line-height: 1.5;
-}
+.hint { margin: 0; font-size: .72em; color: var(--text-dim); text-align: center; line-height: 1.5; }
 .hint strong { color: var(--accent); font-weight: 700; }
+.divider { height: 1px; background: var(--border); border: 0; margin: .1em 0; }
 
-.divider {
-  height: 1px;
-  background: var(--border);
-  border: 0;
-  margin: .1em 0;
-}
-
-/* =========================================================================
-   MOBILE SAFE AREA
-   ========================================================================= */
 @supports (padding: env(safe-area-inset-top)) {
   .hud { top: calc(3.5% + env(safe-area-inset-top)); }
   #pause-button { top: calc(3.5% + env(safe-area-inset-top)); }
@@ -838,7 +271,6 @@ body {
   <canvas id="game"></canvas>
   <div id="ui">
 
-    <!-- ===================== HUD ===================== -->
     <header class="hud" id="hud" hidden>
       <div class="hud-side hud-left">
         <span class="hud-chip" id="hud-flag1"></span>
@@ -846,9 +278,7 @@ body {
       </div>
       <div class="hud-center">
         <div class="hud-score">
-          <span id="hud-s1">0</span>
-          <span class="hud-dash">–</span>
-          <span id="hud-s2">0</span>
+          <span id="hud-s1">0</span><span class="hud-dash">–</span><span id="hud-s2">0</span>
         </div>
         <div class="hud-clock" id="hud-clock">1st Half · 45s</div>
       </div>
@@ -862,44 +292,37 @@ body {
       <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>
     </button>
 
-    <!-- ===================== TITLE ===================== -->
     <section class="screen" id="screen-title" hidden>
       <div class="panel">
         <header class="brand">
           <div class="brand-mark">⚽</div>
           <div class="brand-text">
-            <h1>Countryball Soccer</h1>
-            <span class="brand-year">2026</span>
+            <h1>Head Soccer</h1>
+            <span class="brand-year">v4.0</span>
           </div>
         </header>
         <p class="greeting">Welcome back, <strong id="greeting-name">Player</strong></p>
         <nav class="menu">
           <button class="btn btn-primary btn-lg" data-action="continue" id="btn-continue" hidden>
-            <svg class="icon" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-            Continue
+            <svg class="icon" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>Continue
           </button>
           <button class="btn btn-primary btn-lg" data-action="single">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>
-            Single Player
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>Single Player
           </button>
           <button class="btn btn-blue btn-lg" data-action="local" id="btn-local">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="10" r="2.6"/><path d="M3 20v-1.5A5 5 0 0 1 8 13.5h2a5 5 0 0 1 5 5V20"/><path d="M15 20v-1.5a5 5 0 0 1 5-5h.5V20"/></svg>
-            Local 2-Player
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="10" r="2.6"/><path d="M3 20v-1.5A5 5 0 0 1 8 13.5h2a5 5 0 0 1 5 5V20"/><path d="M15 20v-1.5a5 5 0 0 1 5-5h.5V20"/></svg>Local 2-Player
           </button>
           <button class="btn btn-accent btn-lg" data-action="penalty">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l2 4-2 2-2-2z"/></svg>
-            Penalty Shootout
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l2 4-2 2-2-2z"/></svg>Penalty Shootout
           </button>
           <button class="btn btn-ghost" data-action="settings">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-            Settings &amp; Accounts
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings &amp; Accounts
           </button>
         </nav>
         <p class="footer-note" id="footer-note">Not signed in</p>
       </div>
     </section>
 
-    <!-- ===================== SETTINGS ===================== -->
     <section class="screen" id="screen-settings" hidden>
       <div class="panel panel-wide panel-tall">
         <header class="panel-header">
@@ -930,8 +353,7 @@ body {
         <div class="toggle-list">
           <label class="toggle">
             <span class="toggle-label">Half Time break</span>
-            <input type="checkbox" id="tog-ht">
-            <span class="switch"></span>
+            <input type="checkbox" id="tog-ht"><span class="switch"></span>
           </label>
           <div class="toggle" style="cursor:default">
             <span class="toggle-label">P1 Controls</span>
@@ -942,18 +364,15 @@ body {
           </div>
           <label class="toggle">
             <span class="toggle-label">Mobile controls</span>
-            <input type="checkbox" id="tog-mobile">
-            <span class="switch"></span>
+            <input type="checkbox" id="tog-mobile"><span class="switch"></span>
           </label>
           <label class="toggle">
-            <span class="toggle-label">Retro mode</span>
-            <input type="checkbox" id="tog-retro">
-            <span class="switch"></span>
+            <span class="toggle-label">V3 Classic graphics</span>
+            <input type="checkbox" id="tog-retro"><span class="switch"></span>
           </label>
           <label class="toggle">
             <span class="toggle-label">Dark theme</span>
-            <input type="checkbox" id="tog-dark">
-            <span class="switch"></span>
+            <input type="checkbox" id="tog-dark"><span class="switch"></span>
           </label>
         </div>
 
@@ -964,24 +383,15 @@ body {
           <div class="ach-list">
             <div class="ach" id="ach-brazil">
               <div class="ach-badge">🏆</div>
-              <div class="ach-text">
-                <div class="ach-title">Brazil Award</div>
-                <div class="ach-desc">Win by 6+ goals</div>
-              </div>
+              <div class="ach-text"><div class="ach-title">Brazil Award</div><div class="ach-desc">Win by 6+ goals</div></div>
             </div>
             <div class="ach" id="ach-victory">
               <div class="ach-badge">👑</div>
-              <div class="ach-text">
-                <div class="ach-title">Victory</div>
-                <div class="ach-desc">Win the World Cup</div>
-              </div>
+              <div class="ach-text"><div class="ach-title">Victory</div><div class="ach-desc">Win the World Cup</div></div>
             </div>
             <div class="ach" id="ach-champion">
               <div class="ach-badge">🌟</div>
-              <div class="ach-text">
-                <div class="ach-title">Champion</div>
-                <div class="ach-desc">Win on Easy, Medium &amp; Hard</div>
-              </div>
+              <div class="ach-text"><div class="ach-title">Champion</div><div class="ach-desc">Win on Easy, Medium &amp; Hard</div></div>
             </div>
           </div>
         </div>
@@ -990,7 +400,6 @@ body {
       </div>
     </section>
 
-    <!-- ===================== DIFFICULTY ===================== -->
     <section class="screen" id="screen-difficulty" hidden>
       <div class="panel">
         <header class="panel-header">
@@ -999,37 +408,25 @@ body {
             <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </header>
-        <p class="hint">Nutmeg: push a fast, low ball through the AI's legs. Works on <strong>Easy</strong> and <strong>Medium</strong>. Hard blocks it — and the AI can never nutmeg you.</p>
-
+        <p class="hint">Difficulty controls AI speed, aggression and how sharp the keeper is in a shootout. Hard is fast and unforgiving.</p>
         <div class="diff-list" role="radiogroup" aria-label="Difficulty">
           <button class="diff-card" data-diff="EASY" role="radio" aria-pressed="false">
             <div class="diff-dot easy">E</div>
-            <div class="diff-text">
-              <div class="diff-title">Easy</div>
-              <div class="diff-sub">Relaxed pace, forgiving defense</div>
-            </div>
+            <div class="diff-text"><div class="diff-title">Easy</div><div class="diff-sub">Relaxed pace, forgiving defense</div></div>
           </button>
           <button class="diff-card" data-diff="MEDIUM" role="radio" aria-pressed="false">
             <div class="diff-dot medium">M</div>
-            <div class="diff-text">
-              <div class="diff-title">Medium</div>
-              <div class="diff-sub">Balanced challenge, decent keeper</div>
-            </div>
+            <div class="diff-text"><div class="diff-title">Medium</div><div class="diff-sub">Balanced challenge, decent keeper</div></div>
           </button>
           <button class="diff-card" data-diff="HARD" role="radio" aria-pressed="false">
             <div class="diff-dot hard">H</div>
-            <div class="diff-text">
-              <div class="diff-title">Hard</div>
-              <div class="diff-sub">Fast, aggressive, no nutmeg allowed</div>
-            </div>
+            <div class="diff-text"><div class="diff-title">Hard</div><div class="diff-sub">Fast, aggressive, tough keeper</div></div>
           </button>
         </div>
-
         <button class="btn btn-primary btn-lg" data-action="difficulty-continue" style="justify-content:center">Continue</button>
       </div>
     </section>
 
-    <!-- ===================== MATCH START ===================== -->
     <section class="screen" id="screen-matchstart" hidden>
       <div class="panel" style="max-width:24em">
         <p class="field-label" style="text-align:center">Match Ready</p>
@@ -1050,7 +447,6 @@ body {
       </div>
     </section>
 
-    <!-- ===================== MATCH END ===================== -->
     <section class="screen" id="screen-matchend" hidden>
       <div class="panel" style="max-width:24em">
         <div class="result">
@@ -1062,7 +458,6 @@ body {
       </div>
     </section>
 
-    <!-- ===================== PAUSE ===================== -->
     <section class="screen" id="screen-pause" hidden>
       <div class="panel" style="max-width:20em">
         <h2 style="margin:0;text-align:center;font-size:1.4em;font-weight:900;letter-spacing:-.02em">Paused</h2>
@@ -1081,15 +476,11 @@ body {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 <script>
 /* ==========================================================================
-   COUNTRYBALL SOCCER 2026 — game logic
-   UI layer is HTML/CSS above the canvas. This script drives both:
-   - canvas rendering (pitch, countryballs, ball, bracket, country grid)
-   - HTML UI state (screens, HUD, toggles, inputs)
+   HEAD SOCCER v4.0 — game logic
    ========================================================================== */
 
-// --- Game Configuration & Settings ---
-var canvasWidth = 400;
-var canvasHeight = 400;
+// --- Config ---
+var canvasWidth = 400, canvasHeight = 400;
 var gameState = "TITLE";
 var gameMode = "SINGLE";
 var username = "Player";
@@ -1102,76 +493,44 @@ var achievements = { brazilAward: false, victory: false, champion: false };
 var difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
 var passwordVisible = false;
 
-// --- Display modes ---
 var retroMode = false;
 var lightMode = true;
 var theme = {};
-var lastFpsSample = 0;
-var fpsFrames = 0;
-var fpsValue = 0;
+var lastFpsSample = 0, fpsFrames = 0, fpsValue = 0;
 
-var paused = false;
-var pauseStart = 0;
-var savedGame = null;
-
-var tempName1 = "Player 1";
-var tempName2 = "Player 2";
-var p2Country = 1;
-
-var matchWinnerName = "";
-var matchWinnerCountry = 0;
-var matchIsWin = true;
-var matchIsDraw = false;
-var matchScoreLine = "";
-var matchIsPenalties = false;
+var paused = false, pauseStart = 0, savedGame = null;
+var tempName1 = "Player 1", tempName2 = "Player 2", p2Country = 1;
+var matchWinnerName = "", matchWinnerCountry = 0;
+var matchIsWin = true, matchIsDraw = false, matchScoreLine = "", matchIsPenalties = false;
 var confetti = [];
 
 var mobileControlsEnabled = false;
-var mobileBtn = { left: false, right: false, jump: false };
-var joystick = {
-    baseX: 62, baseY: 363, baseRadius: 34,
-    knobX: 62, knobY: 363, knobRadius: 15,
-    active: false
-};
+var mobileBtn = { left: false, right: false, jump: false, stickJump: false };
+var joystickPointerId = null;
+var jumpPointerId = null;
+var joystick = { baseX: 62, baseY: 363, baseRadius: 34, knobX: 62, knobY: 363, knobRadius: 15, active: false };
 
-// --- Match Timers & State ---
-var timerStart = 0;
-var currentPeriod = 1;
-var periodDuration = 45;
-var extraTimeDuration = 30;
-var breakStart = 0;
-var breakDuration = 5;
-var score1 = 0;
-var score2 = 0;
+// --- Timers & scores ---
+var timerStart = 0, currentPeriod = 1;
+var periodDuration = 45, extraTimeDuration = 30;
+var breakStart = 0, breakDuration = 5;
+var score1 = 0, score2 = 0;
 
-// --- Penalty Shootout ---
+// --- Penalty ---
 var penaltyTurn = 1;
-var p1PenScores = [0, 0, 0, 0, 0];
-var p2PenScores = [0, 0, 0, 0, 0];
+var p1PenScores = [0,0,0,0,0], p2PenScores = [0,0,0,0,0];
 var penaltyIndex = 0;
-var penBallState = "READY";
-var penGoalieState = "IDLE";
-var penBallDir = "NONE";
-var penTimer = 0;
-var selectedCountry = 0;
-var aiCountry = 1;
-var tournamentRound = 1;
+var penBallState = "READY", penGoalieState = "IDLE", penBallDir = "NONE", penTimer = 0;
+var selectedCountry = 0, aiCountry = 1, tournamentRound = 1;
 
-// --- Bracket ---
+// --- Bracket & groups ---
 var bracket = { r0: [], r1: [], r2: [], r3: [], r4: [] };
-
-// --- Group Stage ---
 var groups = [];
-var playerGroupIdx = 0;
-var playerMatchesPlayed = 0;
-var inGroupStage = true;
-
-var GROUP_MATCH_PAIRS = [
-    [0, 1], [2, 3], [0, 2], [3, 1], [0, 3], [1, 2]
-];
+var playerGroupIdx = 0, playerMatchesPlayed = 0, inGroupStage = true;
+var GROUP_MATCH_PAIRS = [[0,1],[2,3],[0,2],[3,1],[0,3],[1,2]];
 var PLAYER_MATCH_INDICES = [0, 2, 4];
 
-// --- Roster (48 nations) ---
+// --- Roster ---
 var tournamentTeams = [
     "BRA","ARG","FRA","GER","ENG","ESP","ITA","JPN",
     "MEX","IRL","USA","URU","FSM","CAN","WAL","SCO",
@@ -1182,169 +541,115 @@ var tournamentTeams = [
 ];
 
 var teamColors = [];
-var gravity = 0.4;
-var friction = 0.98;
+var gravity = 0.4, friction = 0.98;
 var player1, player2, ball;
-var goalWidth = 50;
-var goalHeight = 120;
+var goalWidth = 50, goalHeight = 120;
 var particles = [];
 var keys = {};
 
-// --- Typing helpers ---
-var LOWER_ALPHA = "abcdefghijklmnopqrstuvwxyz";
-var UPPER_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-var NUMERIC = "0123456789";
-
-var toUpperCh = function(ch) {
-    for (var i = 0; i < LOWER_ALPHA.length; i++) {
-        if (LOWER_ALPHA.charAt(i) === ch) { return UPPER_ALPHA.charAt(i); }
-    }
-    return ch;
-};
-var toLowerCh = function(ch) {
-    for (var i = 0; i < UPPER_ALPHA.length; i++) {
-        if (UPPER_ALPHA.charAt(i) === ch) { return LOWER_ALPHA.charAt(i); }
-    }
-    return ch;
-};
-
 // ============================================================
-// THEME OBJECTS (canvas rendering colors only — HTML uses CSS vars)
+// THEME — aligned with CSS variables
 // ============================================================
 var applyTheme = function() {
     if (lightMode) {
         theme = {
-            bg: [214, 226, 238],
-            hudPanel: [255, 255, 255, 235],
-            hudStroke: [120, 155, 200, 200],
-            text: [26, 38, 56],
-            textSoft: [84, 102, 126],
-            gold: [190, 124, 12],
-            winText: [0, 138, 66],
-            danger: [190, 40, 40],
-            lineCol: [96, 122, 158, 180],
-            card: [250, 252, 254, 240],
-            cardStroke: [130, 160, 195, 200],
-            cardSel: [206, 226, 246, 248],
-            cardSelStroke: [216, 138, 24, 255],
-            cardLabel: [232, 238, 246, 255],
-            cardLabelSel: [182, 212, 240, 255],
-            cardLabelText: [26, 38, 56]
+            bg: [234,240,249], hudPanel: [255,255,255,235], hudStroke: [120,155,200,200],
+            text: [22,34,58], textSoft: [85,106,137], gold: [245,158,11],
+            winText: [5,150,105], danger: [220,38,38], lineCol: [96,122,158,180],
+            card: [255,255,255,245], cardStroke: [210,221,238,255],
+            cardSel: [255,252,244,255], cardSelStroke: [245,158,11,255],
+            cardLabel: [244,248,254,255], cardLabelSel: [255,240,214,255],
+            cardLabelText: [22,34,58],
+            ring: [37,99,235,90],
+            shadowSoft: [15,25,45,22], shadowMid: [15,25,45,42], shadowHard: [15,25,45,70]
         };
     } else {
         theme = {
-            bg: [12, 19, 34],
-            hudPanel: [22, 33, 58, 235],
-            hudStroke: [91, 141, 250, 160],
-            text: [236, 241, 251],
-            textSoft: [159, 176, 205],
-            gold: [251, 191, 36],
-            winText: [52, 211, 153],
-            danger: [248, 113, 113],
-            lineCol: [91, 141, 250, 140],
-            card: [28, 42, 72, 240],
-            cardStroke: [91, 141, 250, 100],
-            cardSel: [91, 141, 250, 60],
-            cardSelStroke: [251, 191, 36, 255],
-            cardLabel: [22, 33, 58, 255],
-            cardLabelSel: [91, 141, 250, 90],
-            cardLabelText: [236, 241, 251]
+            bg: [12,19,34], hudPanel: [22,33,58,235], hudStroke: [91,141,250,160],
+            text: [236,241,251], textSoft: [159,176,205], gold: [251,191,36],
+            winText: [52,211,153], danger: [248,113,113], lineCol: [91,141,250,140],
+            card: [28,42,72,245], cardStroke: [61,80,120,255],
+            cardSel: [40,58,92,255], cardSelStroke: [251,191,36,255],
+            cardLabel: [22,33,58,255], cardLabelSel: [60,42,20,255],
+            cardLabelText: [236,241,251],
+            ring: [91,141,250,120],
+            shadowSoft: [0,0,0,60], shadowMid: [0,0,0,100], shadowHard: [0,0,0,150]
         };
     }
     var stage = document.getElementById('stage');
     if (stage) stage.dataset.theme = lightMode ? 'light' : 'dark';
 };
 
-// --- Signed-in helpers ---
 var isSignedIn = function() { return userAccount !== "DEFAULT"; };
 
 // --- Persistence ---
 var saveSettings = function() {
-    try {
-        localStorage.setItem("CBS_SETTINGS", JSON.stringify({
-            lightMode: lightMode, retroMode: retroMode,
-            halftimeEnabled: halftimeEnabled, p1ControlMode: p1ControlMode,
-            mobileControlsEnabled: mobileControlsEnabled, difficulty: difficulty
-        }));
-    } catch (e) {}
+    try { localStorage.setItem("CBS_SETTINGS", JSON.stringify({
+        lightMode: lightMode, retroMode: retroMode, halftimeEnabled: halftimeEnabled,
+        p1ControlMode: p1ControlMode, mobileControlsEnabled: mobileControlsEnabled, difficulty: difficulty
+    })); } catch (e) {}
 };
+
+var isTouchDevice = function() {
+    try {
+        return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+    } catch (e) { return false; }
+};
+
 var loadSettings = function() {
+    var hadMobilePref = false;
     try {
         var raw = localStorage.getItem("CBS_SETTINGS");
         if (raw) {
             var d = JSON.parse(raw);
-            if (typeof d.lightMode === "boolean") { lightMode = d.lightMode; }
-            if (typeof d.retroMode === "boolean") { retroMode = d.retroMode; }
-            if (typeof d.halftimeEnabled === "boolean") { halftimeEnabled = d.halftimeEnabled; }
-            if (d.p1ControlMode === "ARROWS" || d.p1ControlMode === "WASD") { p1ControlMode = d.p1ControlMode; }
-            if (typeof d.mobileControlsEnabled === "boolean") { mobileControlsEnabled = d.mobileControlsEnabled; }
-            if (d.difficulty === "EASY" || d.difficulty === "MEDIUM" || d.difficulty === "HARD") { difficulty = d.difficulty; }
+            if (typeof d.lightMode === "boolean") lightMode = d.lightMode;
+            if (typeof d.retroMode === "boolean") retroMode = d.retroMode;
+            if (typeof d.halftimeEnabled === "boolean") halftimeEnabled = d.halftimeEnabled;
+            if (d.p1ControlMode === "ARROWS" || d.p1ControlMode === "WASD") p1ControlMode = d.p1ControlMode;
+            if (typeof d.mobileControlsEnabled === "boolean") { mobileControlsEnabled = d.mobileControlsEnabled; hadMobilePref = true; }
+            if (d.difficulty === "EASY" || d.difficulty === "MEDIUM" || d.difficulty === "HARD") difficulty = d.difficulty;
         }
     } catch (e) {}
+    if (!hadMobilePref) mobileControlsEnabled = isTouchDevice();
     applyTheme();
 };
+
 var saveAccountData = function() {
-    if (!isSignedIn()) { return; }
-    try {
-        localStorage.setItem("CBS_" + userAccount, JSON.stringify({ achievements: achievements, difficultyWins: difficultyWins }));
-    } catch (e) {}
+    if (!isSignedIn()) return;
+    try { localStorage.setItem("CBS_" + userAccount, JSON.stringify({ achievements: achievements, difficultyWins: difficultyWins })); } catch (e) {}
 };
 var loadAccountData = function() {
     try {
         var raw = localStorage.getItem("CBS_" + userAccount);
-        if (raw) {
-            var p = JSON.parse(raw);
-            achievements = p.achievements || { brazilAward: false, victory: false, champion: false };
-            difficultyWins = p.difficultyWins || { EASY: false, MEDIUM: false, HARD: false };
-            return;
-        }
+        if (raw) { var p = JSON.parse(raw); achievements = p.achievements || { brazilAward: false, victory: false, champion: false }; difficultyWins = p.difficultyWins || { EASY: false, MEDIUM: false, HARD: false }; return; }
     } catch (e) {}
     achievements = { brazilAward: false, victory: false, champion: false };
     difficultyWins = { EASY: false, MEDIUM: false, HARD: false };
 };
 var saveGameToStorage = function() {
-    if (!isSignedIn()) { return; }
-    try {
-        if (savedGame === null) { localStorage.removeItem("CBS_SAVED_GAME_" + userAccount); }
-        else { localStorage.setItem("CBS_SAVED_GAME_" + userAccount, JSON.stringify(savedGame)); }
-    } catch (e) {}
+    if (!isSignedIn()) return;
+    try { if (savedGame === null) localStorage.removeItem("CBS_SAVED_GAME_" + userAccount); else localStorage.setItem("CBS_SAVED_GAME_" + userAccount, JSON.stringify(savedGame)); } catch (e) {}
 };
 var loadGameFromStorage = function() {
     if (!isSignedIn()) { savedGame = null; return; }
-    try {
-        var raw = localStorage.getItem("CBS_SAVED_GAME_" + userAccount);
-        savedGame = raw ? JSON.parse(raw) : null;
-    } catch (e) { savedGame = null; }
+    try { var raw = localStorage.getItem("CBS_SAVED_GAME_" + userAccount); savedGame = raw ? JSON.parse(raw) : null; } catch (e) { savedGame = null; }
 };
 var saveActiveSession = function() {
-    try {
-        if (isSignedIn()) {
-            localStorage.setItem("CBS_ACTIVE_USER", JSON.stringify({ userAccount: userAccount, username: username }));
-        } else { localStorage.removeItem("CBS_ACTIVE_USER"); }
-    } catch (e) {}
+    try { if (isSignedIn()) localStorage.setItem("CBS_ACTIVE_USER", JSON.stringify({ userAccount: userAccount, username: username })); else localStorage.removeItem("CBS_ACTIVE_USER"); } catch (e) {}
 };
 var loadActiveSession = function() {
-    try {
-        var raw = localStorage.getItem("CBS_ACTIVE_USER");
-        if (raw) {
-            var d = JSON.parse(raw);
-            userAccount = d.userAccount || "DEFAULT";
-            username = d.username || "Player";
-        }
-    } catch (e) {}
+    try { var raw = localStorage.getItem("CBS_ACTIVE_USER"); if (raw) { var d = JSON.parse(raw); userAccount = d.userAccount || "DEFAULT"; username = d.username || "Player"; } } catch (e) {}
 };
 var checkPasswordMatch = function(pw) {
     if (pw === "JJJames777") { username = "James"; userAccount = "JAMES"; }
     else if (pw === "7NechiIQ") { username = "Nechi"; userAccount = "NECHI"; }
     else if (pw === "dandanthesodacan") { username = "MrPrayingMantis"; userAccount = "MANTIS"; }
-    else { userAccount = "DEFAULT"; }
-    saveActiveSession();
-    loadAccountData();
-    loadGameFromStorage();
+    else userAccount = "DEFAULT";
+    saveActiveSession(); loadAccountData(); loadGameFromStorage();
 };
 
 // ============================================================
-// COLORS (48 flat colors for retro mode)
+// TEAM COLORS
 // ============================================================
 var initColors = function() {
     teamColors = [
@@ -1364,83 +669,69 @@ var initColors = function() {
 };
 
 // ============================================================
-// AI DIFFICULTY
+// AI CONFIG
 // ============================================================
 var getAiConfig = function() {
     var cfg;
-    if (difficulty === "EASY") {
-        cfg = { speed: 2.0, jumpPower: -7.4, jumpChance: 0.12, defendPos: 352, chaseX: 205, lead: 0, error: 20, jumpRange: 32 };
-    } else if (difficulty === "MEDIUM") {
-        cfg = { speed: 4.3, jumpPower: -10.0, jumpChance: 0.55, defendPos: 315, chaseX: 180, lead: 6, error: 8, jumpRange: 45 };
-    } else {
-        cfg = { speed: 7.0, jumpPower: -12.6, jumpChance: 0.95, defendPos: 282, chaseX: 145, lead: 15, error: 2, jumpRange: 62 };
-    }
-    if (mobileControlsEnabled) {
-        cfg.speed *= 0.82; cfg.jumpChance *= 0.70; cfg.jumpPower *= 0.88;
-        cfg.error += 8; cfg.chaseX += 20;
-    }
+    if (difficulty === "EASY") cfg = { speed: 2.0, jumpPower: -7.4, jumpChance: 0.12, defendPos: 352, chaseX: 205, lead: 0, error: 20, jumpRange: 32 };
+    else if (difficulty === "MEDIUM") cfg = { speed: 4.3, jumpPower: -10.0, jumpChance: 0.55, defendPos: 315, chaseX: 180, lead: 6, error: 8, jumpRange: 45 };
+    else cfg = { speed: 7.0, jumpPower: -12.6, jumpChance: 0.95, defendPos: 282, chaseX: 145, lead: 15, error: 2, jumpRange: 62 };
+    if (mobileControlsEnabled) { cfg.speed *= 0.82; cfg.jumpChance *= 0.70; cfg.jumpPower *= 0.88; cfg.error += 8; cfg.chaseX += 20; }
     return cfg;
 };
 var getPenaltyDiveWrongChance = function() {
     var c;
-    if (difficulty === "EASY") { c = 0.85; }
-    else if (difficulty === "MEDIUM") { c = 0.50; }
-    else { c = 0.12; }
-    if (mobileControlsEnabled) { c = c + (0.5 - c) * 0.35; }
+    if (difficulty === "EASY") c = 0.85;
+    else if (difficulty === "MEDIUM") c = 0.50;
+    else c = 0.12;
+    if (mobileControlsEnabled) c = c + (0.5 - c) * 0.35;
     return c;
 };
 
 // ============================================================
-// Flag helpers
+// FLAG PALETTES
 // ============================================================
 var _fh = {
     distSeg: function(px, py, ax, ay, bx, by) {
-        var dx = bx - ax, dy = by - ay;
-        var len2 = dx * dx + dy * dy;
-        if (len2 < 1e-9) { return sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay)); }
-        var t = ((px - ax) * dx + (py - ay) * dy) / len2;
-        if (t < 0) { t = 0; } else if (t > 1) { t = 1; }
-        var cx = ax + t * dx, cy = ay + t * dy;
-        return sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+        var dx = bx-ax, dy = by-ay, len2 = dx*dx+dy*dy;
+        if (len2 < 1e-9) return sqrt((px-ax)*(px-ax)+(py-ay)*(py-ay));
+        var t = ((px-ax)*dx + (py-ay)*dy) / len2;
+        if (t < 0) t = 0; else if (t > 1) t = 1;
+        var cx = ax+t*dx, cy = ay+t*dy;
+        return sqrt((px-cx)*(px-cx)+(py-cy)*(py-cy));
     },
     star: function(nx, ny, cx, cy, outer, rot, n) {
         var pts = [], inner = outer * 0.42, i, j;
-        for (i = 0; i < n * 2; i++) {
+        for (i = 0; i < n*2; i++) {
             var r = (i % 2 === 0) ? outer : inner;
-            var a = rot + i * PI / n;
-            pts.push([cx + cos(a) * r, cy + sin(a) * r]);
+            var a = rot + i*PI/n;
+            pts.push([cx + cos(a)*r, cy + sin(a)*r]);
         }
         var inside = false;
-        for (i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-            var xi = pts[i][0], yi = pts[i][1];
-            var xj = pts[j][0], yj = pts[j][1];
-            if (((yi > ny) !== (yj > ny)) && (nx < (xj - xi) * (ny - yi) / (yj - yi) + xi)) inside = !inside;
+        for (i = 0, j = pts.length-1; i < pts.length; j = i++) {
+            var xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+            if (((yi > ny) !== (yj > ny)) && (nx < (xj-xi)*(ny-yi)/(yj-yi)+xi)) inside = !inside;
         }
         return inside;
     },
-    unionJack: function(ux, uy) {
+    uj: function(ux, uy) {
         var ax = abs(ux), ay = abs(uy);
         if (ax < 0.17 || ay < 0.17) return [200,16,46];
         if (ax < 0.30 || ay < 0.30) return [255,255,255];
-        if (abs(ax - ay) < 0.12) return [200,16,46];
-        if (abs(ax - ay) < 0.30) return [255,255,255];
+        if (abs(ax-ay) < 0.12) return [200,16,46];
+        if (abs(ax-ay) < 0.30) return [255,255,255];
         return [1,33,105];
     }
 };
 
-// ============================================================
-// Flag RGB palettes (48 nations)
-// ============================================================
 var getFlagRGB = function(idx, nx, ny) {
     var ax, ay, u, v, gx, gy, sx, sy, rr, ang;
     switch (idx) {
         case 0: // BRA
-            if (abs(nx) + abs(ny) < 0.95) {
-                if (nx * nx + ny * ny < 0.2) {
-                    if (abs(ny + nx * 0.12) < 0.045) return [255,255,255];
-                    if ((abs(nx + 0.05) < 0.03 && abs(ny + 0.13) < 0.03) ||
-                        (abs(nx - 0.1) < 0.03 && abs(ny - 0.05) < 0.03) ||
-                        (abs(nx + 0.02) < 0.03 && abs(ny + 0.05) < 0.03)) return [255,255,255];
+            if (abs(nx)+abs(ny) < 0.95) {
+                if (nx*nx+ny*ny < 0.2) {
+                    if (abs(ny+nx*0.12) < 0.045) return [255,255,255];
+                    if ((abs(nx+0.05)<0.03 && abs(ny+0.13)<0.03) || (abs(nx-0.1)<0.03 && abs(ny-0.05)<0.03) || (abs(nx+0.02)<0.03 && abs(ny+0.05)<0.03)) return [255,255,255];
                     return [0,39,118];
                 }
                 return [255,223,0];
@@ -1515,10 +806,7 @@ var getFlagRGB = function(idx, nx, ny) {
             else { if (floor((ny+0.4)*5.5)%2===0) return [91,146,229]; }
             return [255,255,255];
         case 12: // FSM
-            if ((nx*nx+(ny+0.25)*(ny+0.25) < 0.02) ||
-                (nx*nx+(ny-0.25)*(ny-0.25) < 0.02) ||
-                ((nx+0.25)*(nx+0.25)+ny*ny < 0.02) ||
-                ((nx-0.25)*(nx-0.25)+ny*ny < 0.02)) return [255,255,255];
+            if ((nx*nx+(ny+0.25)*(ny+0.25)<0.02) || (nx*nx+(ny-0.25)*(ny-0.25)<0.02) || ((nx+0.25)*(nx+0.25)+ny*ny<0.02) || ((nx-0.25)*(nx-0.25)+ny*ny<0.02)) return [255,255,255];
             return [0,180,240];
         case 13: // CAN
             if (nx < -0.28 || nx > 0.28) return [220,20,20];
@@ -1654,7 +942,7 @@ var getFlagRGB = function(idx, nx, ny) {
             return [255,255,255];
         }
         case 30: // AUS
-            if (nx < 0 && ny < 0) return _fh.unionJack(nx*2+1, ny*2+1);
+            if (nx < 0 && ny < 0) return _fh.uj(nx*2+1, ny*2+1);
             if (_fh.star(nx,ny,0,-0.35,0.13,-HALF_PI,7)) return [255,255,255];
             if (_fh.star(nx,ny,0.62,0.62,0.075,-HALF_PI,7)) return [255,255,255];
             if (_fh.star(nx,ny,0.62,0.18,0.075,-HALF_PI,7)) return [255,255,255];
@@ -1663,7 +951,7 @@ var getFlagRGB = function(idx, nx, ny) {
             if (_fh.star(nx,ny,0.70,0.74,0.055,-HALF_PI,7)) return [255,255,255];
             return [0,0,139];
         case 31: { // NZL
-            if (nx < 0 && ny < 0) return _fh.unionJack(nx*2+1, ny*2+1);
+            if (nx < 0 && ny < 0) return _fh.uj(nx*2+1, ny*2+1);
             var nzPts = [[0.62,0.18],[0.42,0.42],[0.85,0.42],[0.62,0.72]], nzs;
             for (nzs = 0; nzs < 4; nzs++) {
                 if (_fh.star(nx,ny,nzPts[nzs][0],nzPts[nzs][1],0.09,-HALF_PI,5)) return [255,255,255];
@@ -1672,40 +960,36 @@ var getFlagRGB = function(idx, nx, ny) {
             return [0,0,139];
         }
         case 32: { // NOR
-            var innerV = abs(nx+0.08) < 0.10, innerH = abs(ny) < 0.10;
-            var outerV = abs(nx+0.08) < 0.16, outerH = abs(ny) < 0.16;
-            if (innerV || innerH) return [0,32,91];
-            if (outerV || outerH) return [255,255,255];
+            var iv = abs(nx+0.35) < 0.10, ih = abs(ny) < 0.10;
+            var ov = abs(nx+0.35) < 0.16, oh = abs(ny) < 0.16;
+            if (iv || ih) return [0,32,91];
+            if (ov || oh) return [255,255,255];
             return [186,12,47];
         }
-        case 33: { // SWE
-            if (abs(nx+0.08) < 0.10 || abs(ny) < 0.10) return [254,204,0];
+        case 33: // SWE
+            if (abs(nx+0.35) < 0.10 || abs(ny) < 0.10) return [254,204,0];
             return [0,106,167];
-        }
-        case 34: { // FIN
-            if (abs(nx+0.08) < 0.10 || abs(ny) < 0.10) return [0,53,128];
+        case 34: // FIN
+            if (abs(nx+0.35) < 0.10 || abs(ny) < 0.10) return [0,53,128];
             return [255,255,255];
-        }
         case 35: // POL
             if (ny < 0) return [255,255,255];
             return [220,20,60];
         case 36: { // GRL
-            var base36 = (ny < 0) ? [210,30,45] : [255,255,255];
-            var gcx = nx+0.22, gcy = ny;
-            if (gcx*gcx+gcy*gcy < 0.30*0.30) return (ny < 0) ? [255,255,255] : [210,30,45];
-            return base36;
+            var inCircle = ((nx+0.22)*(nx+0.22)+ny*ny) < 0.30*0.30;
+            var topHalf = (ny < 0);
+            if (inCircle) return topHalf ? [210,30,45] : [255,255,255];
+            return topHalf ? [255,255,255] : [210,30,45];
         }
-        case 37: { // DEN
-            if (abs(nx+0.08) < 0.10 || abs(ny) < 0.10) return [255,255,255];
+        case 37: // DEN
+            if (abs(nx+0.35) < 0.10 || abs(ny) < 0.10) return [255,255,255];
             return [198,12,48];
-        }
         case 38: // AUT
             if (abs(ny) > 0.33) return [237,41,57];
             return [255,255,255];
-        case 39: { // SUI
+        case 39: // SUI
             if ((abs(nx) < 0.12 && abs(ny) < 0.36) || (abs(ny) < 0.12 && abs(nx) < 0.36)) return [255,255,255];
             return [255,0,0];
-        }
         case 40: { // TUR
             var cx1 = -0.18, cy1 = 0, r1 = 0.34, cx2 = -0.06, cy2 = 0, r2 = 0.27;
             var d1 = (nx-cx1)*(nx-cx1)+(ny-cy1)*(ny-cy1);
@@ -1779,40 +1063,47 @@ var soccerPatternRGB = function(nx, ny) {
 // ============================================================
 var countryballSprites = {};
 var ballSprites = {};
-var SPRITE_PAD = 3;
+var flagSprites = {};
+var SPRITE_SS = 2;
+var SPRITE_PAD = 2;
 
 var buildCountryballSprite = function(idx, radius) {
-    var size = ceil(radius*2 + SPRITE_PAD*2);
+    var R = radius * SPRITE_SS;
+    var pad = SPRITE_PAD * SPRITE_SS;
+    var size = Math.ceil((R + pad) * 2);
     var g = createGraphics(size, size);
-    g.pixelDensity(1); g.noStroke();
-    var cx = radius+SPRITE_PAD, cy = radius+SPRITE_PAD;
-    var rSq = radius*radius, step = 0.5, bandHeight = 1.3;
+    g.pixelDensity(1);
+    g.noStroke();
+    var cx = size/2, cy = size/2;
+    var rSq = R*R;
+    var step = 1;
     var lx = -0.48, ly = -0.62, lz = 0.62;
-    for (var py = -radius; py <= radius; py += step) {
-        var xSpan = Math.sqrt(Math.max(0, rSq-py*py));
+    for (var py = -R; py <= R; py += step) {
+        var xSpan = Math.sqrt(Math.max(0, rSq - py*py));
         var lastR = -1, lastG = -1, lastB = -1, segStart = -xSpan;
         for (var px = -xSpan; px <= xSpan; px += step) {
-            var rgb = getFlagRGB(idx, px/radius, py/radius);
-            var nx = px/radius, ny = py/radius;
+            var nx = px/R, ny = py/R;
+            var rgb = getFlagRGB(idx, nx, ny);
             var nzSq = 1 - nx*nx - ny*ny;
             var nz = nzSq > 0 ? Math.sqrt(nzSq) : 0;
             var diff = nx*lx + ny*ly + nz*lz;
             if (diff < 0) diff = 0;
-            var intensity = (0.55+0.72*diff)*(0.82+0.18*nz);
-            var spec = Math.pow(diff, 34)*1.1;
-            var r2 = rgb[0]*intensity + 255*spec;
-            var g2 = rgb[1]*intensity + 255*spec;
-            var b2 = rgb[2]*intensity + 255*spec;
+            var intensity = (0.60 + 0.65*diff) * (0.85 + 0.15*nz);
+            var spec = Math.pow(diff, 22) * 0.85;
+            var edge = 0.72 + 0.28 * Math.sqrt(nz);
+            var r2 = rgb[0] * intensity * edge + 255 * spec;
+            var g2 = rgb[1] * intensity * edge + 255 * spec;
+            var b2 = rgb[2] * intensity * edge + 255 * spec;
             if (r2 > 255) r2 = 255; else if (r2 < 0) r2 = 0;
             if (g2 > 255) g2 = 255; else if (g2 < 0) g2 = 0;
             if (b2 > 255) b2 = 255; else if (b2 < 0) b2 = 0;
-            var qr = ((r2/12)|0)*12, qg = ((g2/12)|0)*12, qb = ((b2/12)|0)*12;
+            var qr = (r2|0) & ~3, qg = (g2|0) & ~3, qb = (b2|0) & ~3;
             if (qr !== lastR || qg !== lastG || qb !== lastB) {
-                if (lastR >= 0) { g.fill(lastR,lastG,lastB); g.rect(cx+segStart, cy+py, px-segStart, bandHeight); }
+                if (lastR >= 0) { g.fill(lastR, lastG, lastB); g.rect(cx+segStart, cy+py, px-segStart, step); }
                 lastR = qr; lastG = qg; lastB = qb; segStart = px;
             }
         }
-        if (lastR >= 0) { g.fill(lastR,lastG,lastB); g.rect(cx+segStart, cy+py, xSpan-segStart, bandHeight); }
+        if (lastR >= 0) { g.fill(lastR, lastG, lastB); g.rect(cx+segStart, cy+py, xSpan-segStart, step); }
     }
     return g;
 };
@@ -1825,37 +1116,41 @@ var getCountryballSprite = function(idx, radius) {
 };
 
 var buildBallSprite = function(radius, flagIdx) {
-    var size = ceil(radius*2 + SPRITE_PAD*2);
+    var R = radius * SPRITE_SS;
+    var pad = SPRITE_PAD * SPRITE_SS;
+    var size = Math.ceil((R + pad) * 2);
     var g = createGraphics(size, size);
-    g.pixelDensity(1); g.noStroke();
-    var cx = radius+SPRITE_PAD, cy = radius+SPRITE_PAD;
-    var rSq = radius*radius, step = 0.5, bandHeight = 1.4;
+    g.pixelDensity(1);
+    g.noStroke();
+    var cx = size/2, cy = size/2;
+    var rSq = R*R;
     var lx = -0.48, ly = -0.62, lz = 0.62;
-    for (var py = -radius; py <= radius; py += step) {
-        var xSpan = Math.sqrt(Math.max(0, rSq-py*py));
+    for (var py = -R; py <= R; py += 1) {
+        var xSpan = Math.sqrt(Math.max(0, rSq - py*py));
         var lastR = -1, lastG = -1, lastB = -1, segStart = -xSpan;
-        for (var px = -xSpan; px <= xSpan; px += step) {
-            var nx = px/radius, ny = py/radius;
+        for (var px = -xSpan; px <= xSpan; px += 1) {
+            var nx = px/R, ny = py/R;
             var rgb = (flagIdx >= 0) ? getFlagRGB(flagIdx, nx, ny) : soccerPatternRGB(nx, ny);
             var nzSq = 1 - nx*nx - ny*ny;
             var nz = nzSq > 0 ? Math.sqrt(nzSq) : 0;
             var diff = nx*lx + ny*ly + nz*lz;
             if (diff < 0) diff = 0;
-            var intensity = (0.55+0.72*diff)*(0.82+0.18*nz);
-            var spec = Math.pow(diff, 34)*1.2;
-            var r2 = rgb[0]*intensity + 255*spec;
-            var g2 = rgb[1]*intensity + 255*spec;
-            var b2 = rgb[2]*intensity + 255*spec;
+            var intensity = (0.60 + 0.65*diff) * (0.85 + 0.15*nz);
+            var spec = Math.pow(diff, 22) * 0.9;
+            var edge = 0.72 + 0.28 * Math.sqrt(nz);
+            var r2 = rgb[0] * intensity * edge + 255 * spec;
+            var g2 = rgb[1] * intensity * edge + 255 * spec;
+            var b2 = rgb[2] * intensity * edge + 255 * spec;
             if (r2 > 255) r2 = 255; else if (r2 < 0) r2 = 0;
             if (g2 > 255) g2 = 255; else if (g2 < 0) g2 = 0;
             if (b2 > 255) b2 = 255; else if (b2 < 0) b2 = 0;
-            var qr = ((r2/12)|0)*12, qg = ((g2/12)|0)*12, qb = ((b2/12)|0)*12;
+            var qr = (r2|0) & ~3, qg = (g2|0) & ~3, qb = (b2|0) & ~3;
             if (qr !== lastR || qg !== lastG || qb !== lastB) {
-                if (lastR >= 0) { g.fill(lastR,lastG,lastB); g.rect(cx+segStart, cy+py, px-segStart, bandHeight); }
+                if (lastR >= 0) { g.fill(lastR, lastG, lastB); g.rect(cx+segStart, cy+py, px-segStart, 1); }
                 lastR = qr; lastG = qg; lastB = qb; segStart = px;
             }
         }
-        if (lastR >= 0) { g.fill(lastR,lastG,lastB); g.rect(cx+segStart, cy+py, xSpan-segStart, bandHeight); }
+        if (lastR >= 0) { g.fill(lastR, lastG, lastB); g.rect(cx+segStart, cy+py, xSpan-segStart, 1); }
     }
     return g;
 };
@@ -1867,24 +1162,35 @@ var getBallSprite = function(radius, flagIdx) {
     return ballSprites[key];
 };
 
-// --- Flag / countryball drawing ---
-var drawFlagShapes = function(idx, w, h) {
-    noStroke();
-    for (var py = 0; py < h; py += 1) {
+var buildFlagSprite = function(idx, w, h) {
+    var g = createGraphics(w, h);
+    g.pixelDensity(2);
+    g.noStroke();
+    for (var py = 0; py < h; py++) {
         var ny = ((py+0.5)/h)*2 - 1;
         var lastR = -1, lastG = -1, lastB = -1, segStart = 0;
-        for (var px = 0; px <= w; px += 1) {
+        for (var px = 0; px <= w; px++) {
             var rgb;
             if (px < w) { var nx = ((px+0.5)/w)*2 - 1; rgb = getFlagRGB(idx, nx, ny); }
             else rgb = [-1,-1,-1];
             if (rgb[0] !== lastR || rgb[1] !== lastG || rgb[2] !== lastB) {
-                if (lastR >= 0) { fill(lastR,lastG,lastB); rect(segStart, py, px-segStart, 1); }
+                if (lastR >= 0) { g.fill(lastR, lastG, lastB); g.rect(segStart, py, px - segStart, 1); }
                 lastR = rgb[0]; lastG = rgb[1]; lastB = rgb[2]; segStart = px;
             }
         }
     }
+    return g;
 };
 
+var getFlagSprite = function(idx, w, h) {
+    var key = idx + "_" + w + "_" + h;
+    if (!flagSprites[key]) flagSprites[key] = buildFlagSprite(idx, w, h);
+    return flagSprites[key];
+};
+
+// ============================================================
+// DRAWING HELPERS
+// ============================================================
 var drawFlag = function(idx, x, y, w, h) {
     push();
     translate(x, y);
@@ -1892,50 +1198,93 @@ var drawFlag = function(idx, x, y, w, h) {
         noStroke(); fill(teamColors[idx] || color(100));
         rect(0, 0, w, h);
     } else {
-        drawFlagShapes(idx, w, h);
+        var sprite = getFlagSprite(idx, Math.round(w), Math.round(h));
+        image(sprite, 0, 0, w, h);
     }
-    noFill(); stroke(0, 90); strokeWeight(1);
+    noFill(); stroke(0, 70); strokeWeight(1);
     rect(0, 0, w, h);
     pop();
 };
 
-var drawCountryball = function(idx, x, y, radius, lookDir) {
+// Countryball with layered CSS-like shadows and crisp proportional eyes.
+var drawCountryball = function(idx, x, y, radius, lookDir, shadowY) {
+    if (shadowY === undefined || shadowY === null) shadowY = y + radius * 0.98;
+
+    // --- layered soft ground shadow (mimics CSS multi-layer shadow) ---
+    var lift = Math.max(0, shadowY - (y + radius * 0.9));
+    var shrink = Math.max(0.30, 1 - lift / 320);
+
+    push();
+    noStroke();
+    fill(0, 0, 0, 14 * shrink);
+    ellipse(x, shadowY + 1.5, radius * 3.1 * shrink, radius * 0.90 * shrink);
+    fill(0, 0, 0, 24 * shrink);
+    ellipse(x, shadowY, radius * 2.4 * shrink, radius * 0.68 * shrink);
+    fill(0, 0, 0, 50 * shrink);
+    ellipse(x, shadowY, radius * 1.85 * shrink, radius * 0.46 * shrink);
+    pop();
+
     push();
     translate(x, y);
-    noStroke();
-    fill(0, 0, 0, 50); ellipse(1, radius+3, radius*1.8, 8);
-    fill(0, 0, 0, 30); ellipse(1, radius+3, radius*2.1, 12);
 
     if (retroMode) {
         fill(teamColors[idx] || color(150));
         stroke(0); strokeWeight(2);
         ellipse(0, 0, radius*2, radius*2);
         noStroke();
-        fill(255); ellipse(10*lookDir, -5, 8, 8);
-        fill(0); ellipse(12*lookDir, -5, 4, 4);
-    } else {
-        var r = Math.round(radius);
-        var sprite = getCountryballSprite(idx, r);
-        image(sprite, -r-SPRITE_PAD, -r-SPRITE_PAD);
-        noFill(); stroke(0); strokeWeight(2.5);
-        ellipse(0, 0, radius*2, radius*2);
-
-        var eyeOffset = (lookDir > 0) ? 3 : -3;
-        fill(255); stroke(0); strokeWeight(1.5);
-        push(); translate(-8+eyeOffset, -6); rotate(lookDir > 0 ? -0.12 : 0.12); ellipse(0, 0, 8, 11); pop();
-        push(); translate(8+eyeOffset, -6); rotate(lookDir > 0 ? 0.12 : -0.12); ellipse(0, 0, 8, 11); pop();
-        noStroke(); fill(0);
-        ellipse(-8+eyeOffset*0.6, -5, 3.5, 4.5);
-        ellipse(8+eyeOffset*0.6, -5, 3.5, 4.5);
-        fill(255, 220);
-        ellipse(-8+eyeOffset*0.6-1, -6, 1.5, 1.8);
-        ellipse(8+eyeOffset*0.6-1, -6, 1.5, 1.8);
-
-        noStroke(); fill(255, 200);
-        ellipse(-radius*0.38, -radius*0.38, radius*0.28, radius*0.22);
-        fill(255, 120);
-        ellipse(-radius*0.38, -radius*0.38, radius*0.44, radius*0.34);
+        fill(255); ellipse(radius*0.38*lookDir, -radius*0.21, radius*0.34, radius*0.34);
+        fill(0);   ellipse(radius*0.46*lookDir, -radius*0.21, radius*0.17, radius*0.17);
+        pop();
+        return;
     }
+
+    var r = Math.round(radius);
+    var sprite = getCountryballSprite(idx, r);
+    var drawSize = (r + SPRITE_PAD) * 2;
+    image(sprite, -drawSize/2, -drawSize/2, drawSize, drawSize);
+
+    // Subtle defining ring (matches UI border language)
+    noFill();
+    stroke(0, lightMode ? 40 : 90);
+    strokeWeight(1);
+    ellipse(0, 0, radius*2 + 0.5, radius*2 + 0.5);
+
+    // --- eyes (all proportional to radius) ---
+    var eyeDX = radius * 0.30;
+    var eyeW  = radius * 0.38;
+    var eyeH  = radius * 0.50;
+    var eyeY  = -radius * 0.21;
+    var pupW  = radius * 0.175;
+    var pupH  = radius * 0.220;
+    var pupX  = radius * 0.075 * lookDir;
+    var tilt  = 0.14 * lookDir;
+
+    noStroke(); fill(0, 0, 0, 26);
+    ellipse(-eyeDX + pupX + 1, eyeY + 1.2, eyeW + 1, eyeH + 1);
+    ellipse( eyeDX + pupX + 1, eyeY + 1.2, eyeW + 1, eyeH + 1);
+
+    fill(255); stroke(0); strokeWeight(Math.max(1, radius * 0.067));
+    push(); translate(-eyeDX + pupX, eyeY); rotate(-tilt); ellipse(0, 0, eyeW, eyeH); pop();
+    push(); translate( eyeDX + pupX, eyeY); rotate( tilt); ellipse(0, 0, eyeW, eyeH); pop();
+
+    noStroke(); fill(14, 16, 22);
+    ellipse(-eyeDX + pupX*0.75, eyeY + radius*0.02, pupW, pupH);
+    ellipse( eyeDX + pupX*0.75, eyeY + radius*0.02, pupW, pupH);
+
+    fill(255, 240);
+    ellipse(-eyeDX + pupX*0.75 - radius*0.05, eyeY - radius*0.035, radius*0.075, radius*0.085);
+    ellipse( eyeDX + pupX*0.75 - radius*0.05, eyeY - radius*0.035, radius*0.075, radius*0.085);
+
+    noStroke();
+    fill(255, 120, 120, 38);
+    ellipse(-radius*0.62, radius*0.16, radius*0.30, radius*0.17);
+    ellipse( radius*0.62, radius*0.16, radius*0.30, radius*0.17);
+
+    fill(255, 190);
+    ellipse(-radius*0.34, -radius*0.44, radius*0.40, radius*0.28);
+    fill(255, 80);
+    ellipse(-radius*0.34, -radius*0.44, radius*0.58, radius*0.42);
+
     pop();
 };
 
@@ -1944,12 +1293,13 @@ var drawBallScanlines = function(x, y, radius, flagIdx) {
     translate(x, y);
     var r = Math.round(radius);
     var sprite = getBallSprite(r, flagIdx);
-    image(sprite, -r-SPRITE_PAD, -r-SPRITE_PAD);
+    var drawSize = (r + SPRITE_PAD) * 2;
+    image(sprite, -drawSize/2, -drawSize/2, drawSize, drawSize);
     if (!retroMode) {
-        noFill(); stroke(0); strokeWeight(1.4);
+        noFill(); stroke(0, 200); strokeWeight(1.2);
         ellipse(0, 0, radius*2, radius*2);
-        noStroke(); fill(255, 210);
-        ellipse(-radius*0.38, -radius*0.38, radius*0.35, radius*0.28);
+        noStroke(); fill(255, 220);
+        ellipse(-radius*0.35, -radius*0.38, radius*0.35, radius*0.28);
     }
     pop();
 };
@@ -1958,7 +1308,7 @@ var drawBallScanlines = function(x, y, radius, flagIdx) {
 // PARTICLES / CONFETTI
 // ============================================================
 var spawnBurst = function(x, y, c) {
-    for (var i = 0; i < 14; i++) {
+    for (var i = 0; i < 12; i++) {
         particles.push({ x: x, y: y, vx: random(-4, 4), vy: random(-6, 1), life: 255, color: c });
     }
 };
@@ -1972,15 +1322,13 @@ var updateAndDrawParticles = function() {
     }
 };
 var spawnConfetti = function() {
-    for (var i = 0; i < 4; i++) {
+    for (var i = 0; i < 3; i++) {
         var col, r = random(0, 4);
         if (r < 1) col = color(255,220,80);
         else if (r < 2) col = color(80,200,255);
         else if (r < 3) col = color(255,120,180);
         else col = color(120,255,150);
-        confetti.push({ x: random(-10, canvasWidth+10), y: -10,
-            vx: random(-0.8, 0.8), vy: random(1.2, 3.2), color: col,
-            size: random(4, 8), rot: random(0, TWO_PI), rotSpeed: random(-0.15, 0.15) });
+        confetti.push({ x: random(-10, canvasWidth+10), y: -10, vx: random(-0.8, 0.8), vy: random(1.2, 3.2), color: col, size: random(4, 8), rot: random(0, TWO_PI), rotSpeed: random(-0.15, 0.15) });
     }
 };
 var updateAndDrawConfetti = function() {
@@ -2014,8 +1362,7 @@ var buildGroups = function() {
             teams.push(selectedCountry);
             teams.push(pool[poolIdx++]); teams.push(pool[poolIdx++]); teams.push(pool[poolIdx++]);
         } else {
-            teams.push(pool[poolIdx++]); teams.push(pool[poolIdx++]);
-            teams.push(pool[poolIdx++]); teams.push(pool[poolIdx++]);
+            teams.push(pool[poolIdx++]); teams.push(pool[poolIdx++]); teams.push(pool[poolIdx++]); teams.push(pool[poolIdx++]);
         }
         groups.push({ teams: teams, results: [null,null,null,null,null,null], standings: null });
     }
@@ -2024,11 +1371,7 @@ var buildGroups = function() {
 };
 var getPlayerOpponent = function(matchNum) { return groups[playerGroupIdx].teams[matchNum + 1]; };
 var getPlayerGroupLetter = function() { return String.fromCharCode(65 + playerGroupIdx); };
-
-var simulateResult = function() {
-    var sa = floor(random(0, 4)), sb = floor(random(0, 4));
-    return { sa: sa, sb: sb };
-};
+var simulateResult = function() { return { sa: floor(random(0, 4)), sb: floor(random(0, 4)) }; };
 var simulateRestOfGroups = function() {
     for (var g = 0; g < 12; g++) for (var m = 0; m < 6; m++) if (groups[g].results[m] === null) groups[g].results[m] = simulateResult();
 };
@@ -2127,31 +1470,20 @@ var simulateCurrentRound = function() {
             } else simulateMatch(m);
         }
     }
-    if (tournamentRound === 1) {
-        for (i = 0; i < 8; i++) { bracket.r1[i].t1 = bracket.r0[i*2].winner; bracket.r1[i].t2 = bracket.r0[i*2+1].winner; }
-    } else if (tournamentRound === 2) {
-        for (i = 0; i < 4; i++) { bracket.r2[i].t1 = bracket.r1[i*2].winner; bracket.r2[i].t2 = bracket.r1[i*2+1].winner; }
-    } else if (tournamentRound === 3) {
-        for (i = 0; i < 2; i++) { bracket.r3[i].t1 = bracket.r2[i*2].winner; bracket.r3[i].t2 = bracket.r2[i*2+1].winner; }
-    } else if (tournamentRound === 4) {
-        bracket.r4[0].t1 = bracket.r3[0].winner; bracket.r4[0].t2 = bracket.r3[1].winner;
-    }
+    if (tournamentRound === 1) { for (i = 0; i < 8; i++) { bracket.r1[i].t1 = bracket.r0[i*2].winner; bracket.r1[i].t2 = bracket.r0[i*2+1].winner; } }
+    else if (tournamentRound === 2) { for (i = 0; i < 4; i++) { bracket.r2[i].t1 = bracket.r1[i*2].winner; bracket.r2[i].t2 = bracket.r1[i*2+1].winner; } }
+    else if (tournamentRound === 3) { for (i = 0; i < 2; i++) { bracket.r3[i].t1 = bracket.r2[i*2].winner; bracket.r3[i].t2 = bracket.r2[i*2+1].winner; } }
+    else if (tournamentRound === 4) { bracket.r4[0].t1 = bracket.r3[0].winner; bracket.r4[0].t2 = bracket.r3[1].winner; }
     if (bracket.r4[0].winner === selectedCountry) {
         achievements.victory = true;
-        if (gameMode === "SINGLE") {
-            difficultyWins[difficulty] = true;
-            if (difficultyWins.EASY && difficultyWins.MEDIUM && difficultyWins.HARD) achievements.champion = true;
-        }
+        if (gameMode === "SINGLE") { difficultyWins[difficulty] = true; if (difficultyWins.EASY && difficultyWins.MEDIUM && difficultyWins.HARD) achievements.champion = true; }
         saveAccountData();
     }
     if (tournamentRound < 6) tournamentRound++;
 };
 var isPlayerInBracket = function() {
     if (!bracket.r0) return false;
-    for (var i = 0; i < bracket.r0.length; i++) {
-        var m = bracket.r0[i];
-        if (m && (m.t1 === selectedCountry || m.t2 === selectedCountry)) return true;
-    }
+    for (var i = 0; i < bracket.r0.length; i++) { var m = bracket.r0[i]; if (m && (m.t1 === selectedCountry || m.t2 === selectedCountry)) return true; }
     return false;
 };
 var isPlayerEliminated = function() {
@@ -2160,9 +1492,7 @@ var isPlayerEliminated = function() {
     for (var r = 0; r < allRounds.length; r++) {
         for (var m = 0; m < allRounds[r].length; m++) {
             var chk = allRounds[r][m];
-            if (chk && chk.winner !== null &&
-                (chk.t1 === selectedCountry || chk.t2 === selectedCountry) &&
-                chk.winner !== selectedCountry) return true;
+            if (chk && chk.winner !== null && (chk.t1 === selectedCountry || chk.t2 === selectedCountry) && chk.winner !== selectedCountry) return true;
         }
     }
     return false;
@@ -2182,8 +1512,7 @@ var setNextAiOpponent = function() {
 // ============================================================
 var initEntities = function() {
     if (teamColors.length === 0) initColors();
-    var isSolo = (gameMode === "SINGLE");
-    var isLocal = (gameMode === "LOCAL");
+    var isSolo = (gameMode === "SINGLE"), isLocal = (gameMode === "LOCAL");
     var aiCfg = getAiConfig();
     var p1Name = isLocal ? tempName1 : username;
     var p1CountryIdx = selectedCountry;
@@ -2191,12 +1520,8 @@ var initEntities = function() {
     if (isLocal) { p2TeamIdx = p2Country; p2Name = tempName2; }
     else { p2TeamIdx = aiCountry; p2Name = tournamentTeams[aiCountry]; }
 
-    player1 = { x: 80, y: 300, vx: 0, vy: 0, radius: 24, speed: 5.8, jumpPower: -10.8,
-                teamIndex: p1CountryIdx, isGrounded: false, color: teamColors[p1CountryIdx], name: p1Name };
-    player2 = { x: 320, y: 300, vx: 0, vy: 0, radius: 24,
-                speed: isSolo ? aiCfg.speed : 5.8,
-                jumpPower: isSolo ? aiCfg.jumpPower : -10.8,
-                teamIndex: p2TeamIdx, isGrounded: false, color: teamColors[p2TeamIdx], name: p2Name };
+    player1 = { x: 80, y: 300, vx: 0, vy: 0, radius: 24, speed: 5.8, jumpPower: -10.8, teamIndex: p1CountryIdx, isGrounded: false, color: teamColors[p1CountryIdx], name: p1Name };
+    player2 = { x: 320, y: 300, vx: 0, vy: 0, radius: 24, speed: isSolo ? aiCfg.speed : 5.8, jumpPower: isSolo ? aiCfg.jumpPower : -10.8, teamIndex: p2TeamIdx, isGrounded: false, color: teamColors[p2TeamIdx], name: p2Name };
     ball = { x: 200, y: 150, vx: random(-2, 2), vy: 0, radius: 11, angle: 0, teamIndex: -1 };
 };
 var setupPenaltyData = function() {
@@ -2219,46 +1544,64 @@ var triggerPenaltyShot = function(dir) {
     }
 };
 
-// --- Joystick ---
+// ============================================================
+// MOBILE CONTROLS
+// ============================================================
 var drawJoystick = function() {
     noStroke();
-    fill(0, 100, 180, 90);
+    fill(0, 100, 180, 80);
     ellipse(joystick.baseX, joystick.baseY, joystick.baseRadius*2, joystick.baseRadius*2);
     stroke(255, 200); strokeWeight(2); noFill();
     ellipse(joystick.baseX, joystick.baseY, joystick.baseRadius*2, joystick.baseRadius*2);
-    ellipse(joystick.baseX, joystick.baseY, joystick.baseRadius*1.15, joystick.baseRadius*1.15);
     noStroke(); fill(255, 220);
     textAlign(CENTER, CENTER); textSize(9);
-    text("JUMP", joystick.baseX, joystick.baseY - joystick.baseRadius + 8);
-    text("L", joystick.baseX - joystick.baseRadius + 10, joystick.baseY);
-    text("R", joystick.baseX + joystick.baseRadius - 10, joystick.baseY);
+    text("L", joystick.baseX - joystick.baseRadius + 11, joystick.baseY);
+    text("R", joystick.baseX + joystick.baseRadius - 11, joystick.baseY);
     fill(joystick.active ? color(120, 180, 240) : color(60, 90, 140));
     stroke(255); strokeWeight(2);
     ellipse(joystick.knobX, joystick.knobY, joystick.knobRadius*2, joystick.knobRadius*2);
 };
-var drawMobileControls = function() { if (mobileControlsEnabled) drawJoystick(); };
+
+var drawMobileControls = function() {
+    if (!mobileControlsEnabled) return;
+    drawJoystick();
+    var jx = 332, jy = 350, jr = 32;
+    noStroke(); fill(30, 90, 170, 90);
+    ellipse(jx, jy, jr*2, jr*2);
+    stroke(255, 200); strokeWeight(2); noFill();
+    ellipse(jx, jy, jr*2, jr*2);
+    noStroke(); fill(255, 225);
+    textAlign(CENTER, CENTER); textSize(10);
+    text("JUMP", jx, jy);
+};
+
 var updateJoystick = function(mx, my) {
     if (!joystick.active) return;
     var dx = mx - joystick.baseX, dy = my - joystick.baseY;
-    var dist = sqrt(dx*dx + dy*dy);
+    var dist = Math.sqrt(dx*dx + dy*dy);
     if (dist > joystick.baseRadius) { dx = dx/dist*joystick.baseRadius; dy = dy/dist*joystick.baseRadius; }
-    joystick.knobX = joystick.baseX + dx; joystick.knobY = joystick.baseY + dy;
-    var dz = 9;
-    mobileBtn.left = dx < -dz; mobileBtn.right = dx > dz; mobileBtn.jump = dy < -dz*1.6;
+    joystick.knobX = joystick.baseX + dx;
+    joystick.knobY = joystick.baseY + dy;
+    var dz = 10;
+    mobileBtn.left = (dx < -dz);
+    mobileBtn.right = (dx > dz);
+    mobileBtn.stickJump = (dy < -dz * 1.4);
 };
+
 var handleJoystickPress = function(mx, my) {
-    if (mx > canvasWidth*0.72) return false;
-    if (my < 260) return false;
     joystick.baseX = mx; joystick.baseY = my;
     joystick.knobX = mx; joystick.knobY = my;
     joystick.active = true;
-    mobileBtn.left = false; mobileBtn.right = false; mobileBtn.jump = false;
-    return true;
+    mobileBtn.left = false; mobileBtn.right = false; mobileBtn.stickJump = false;
 };
+
 var releaseJoystick = function() {
     joystick.active = false;
-    joystick.knobX = joystick.baseX; joystick.knobY = joystick.baseY;
-    mobileBtn.left = false; mobileBtn.right = false; mobileBtn.jump = false;
+    joystick.knobX = joystick.baseX;
+    joystick.knobY = joystick.baseY;
+    mobileBtn.left = false;
+    mobileBtn.right = false;
+    mobileBtn.stickJump = false;
 };
 
 // ============================================================
@@ -2267,10 +1610,8 @@ var releaseJoystick = function() {
 var goToMatchEnd = function(isPenalties) {
     matchIsPenalties = isPenalties;
     var p1Won = (score1 > score2);
-    var isSolo = (gameMode === "SINGLE");
-    var isLocal = (gameMode === "LOCAL");
+    var isSolo = (gameMode === "SINGLE"), isLocal = (gameMode === "LOCAL");
     matchIsDraw = false;
-
     if (isSolo) {
         if (inGroupStage) {
             var mi = PLAYER_MATCH_INDICES[playerMatchesPlayed];
@@ -2295,10 +1636,8 @@ var goToMatchEnd = function(isPenalties) {
         matchWinnerName = matchIsWin ? username : "AI";
         matchWinnerCountry = matchIsWin ? selectedCountry : aiCountry;
     }
-
     matchScoreLine = score1 + " – " + score2;
     if (isPenalties) matchScoreLine += " (penalties)";
-
     confetti = []; particles = []; keys = {}; paused = false;
     releaseJoystick();
     gameState = "MATCH_END";
@@ -2342,20 +1681,23 @@ var updatePlayer = function(p, controlType) {
     var isLocal = (gameMode === "LOCAL");
 
     if (controlType === "P1_INPUT") {
-        var p1WASD = isLocal || (p1ControlMode === "WASD");
-        if (p1WASD) {
-            moveLeft = keys[65] || mobileBtn.left;
-            moveRight = keys[68] || mobileBtn.right;
-            jump = keys[87] || mobileBtn.jump;
+        var kbL, kbR, kbJ;
+        if (isLocal) {
+            kbL = keys[65]; kbR = keys[68]; kbJ = keys[87];
         } else {
-            moveLeft = keys[37] || mobileBtn.left;
-            moveRight = keys[39] || mobileBtn.right;
-            jump = keys[38] || mobileBtn.jump;
+            kbL = keys[65] || keys[37];
+            kbR = keys[68] || keys[39];
+            kbJ = keys[87] || keys[38];
         }
+        moveLeft  = kbL || mobileBtn.left;
+        moveRight = kbR || mobileBtn.right;
+        jump      = kbJ || mobileBtn.jump || mobileBtn.stickJump;
+
     } else if (controlType === "P2_INPUT") {
         if (isLocal) { moveLeft = keys[37]; moveRight = keys[39]; jump = keys[38]; }
         else if (p1ControlMode === "ARROWS") { moveLeft = keys[65]; moveRight = keys[68]; jump = keys[87]; }
         else { moveLeft = keys[37]; moveRight = keys[39]; jump = keys[38]; }
+
     } else if (controlType === "AI") {
         var aiCfg = getAiConfig();
         var targetX = ball.x + ball.vx * aiCfg.lead;
@@ -2375,10 +1717,12 @@ var updatePlayer = function(p, controlType) {
     else p.vx = 0;
 
     if (jump && p.isGrounded) { p.vy = p.jumpPower; p.isGrounded = false; }
+
     p.x += p.vx; p.vy += gravity; p.y += p.vy;
     if (p.y >= 350 - p.radius) { p.y = 350 - p.radius; p.vy = 0; p.isGrounded = true; }
     p.x = constrain(p.x, p.radius, canvasWidth - p.radius);
 };
+
 var updateBall = function() {
     ball.vy += gravity*0.65; ball.x += ball.vx; ball.y += ball.vy;
     ball.vx *= friction; ball.vy *= friction; ball.angle += ball.vx*0.1;
@@ -2391,29 +1735,8 @@ var updateBall = function() {
 };
 
 // ============================================================
-// COLLISION + NUTMEG
+// COLLISION — nutmeg removed, clean normal-based response
 // ============================================================
-var NUTMEG_MIN_SPEED = 3.0;
-var NUTMEG_LOW_FACTOR = 0.35;
-
-var isHardModeForNutmeg = function() {
-    return (gameMode === "SINGLE" && difficulty === "HARD");
-};
-var canNutmeg = function(defender) {
-    if (retroMode) return false;
-    if (isHardModeForNutmeg()) return false;
-    if (gameMode === "SINGLE") {
-        if (defender !== player2) return false;
-        return (ball.teamIndex === player1.teamIndex || ball.teamIndex === -1);
-    }
-    if (gameMode === "LOCAL") {
-        if (defender === player1) return (ball.teamIndex === player2.teamIndex || ball.teamIndex === -1);
-        if (defender === player2) return (ball.teamIndex === player1.teamIndex || ball.teamIndex === -1);
-        return false;
-    }
-    return false;
-};
-
 var pointSegmentDistSq = function(px, py, ax, ay, bx, by) {
     var dx = bx-ax, dy = by-ay, len2 = dx*dx+dy*dy;
     if (len2 < 1e-9) return (px-ax)*(px-ax) + (py-ay)*(py-ay);
@@ -2424,46 +1747,57 @@ var pointSegmentDistSq = function(px, py, ax, ay, bx, by) {
 };
 
 var resolveCollision = function(p, prevBallX, prevBallY) {
-    var dx = ball.x - p.x, dy = ball.y - p.y;
-    var distance = sqrt(dx*dx + dy*dy);
     var minDist = p.radius + ball.radius;
-    var collided = false, tunneled = false;
+    var dx = ball.x - p.x;
+    var dy = ball.y - p.y;
+    var distSq = dx*dx + dy*dy;
 
-    if (distance < minDist) collided = true;
-    else if (prevBallX !== undefined && prevBallY !== undefined) {
-        if (pointSegmentDistSq(p.x, p.y, prevBallX, prevBallY, ball.x, ball.y) < minDist*minDist) {
-            collided = true; tunneled = true;
-            var cameFromLeft = (prevBallX < p.x);
-            dx = cameFromLeft ? -1 : 1;
-            dy = 0;
+    var collided = false;
+    if (distSq < minDist * minDist) {
+        collided = true;
+    } else if (prevBallX !== undefined && prevBallY !== undefined) {
+        if (pointSegmentDistSq(p.x, p.y, prevBallX, prevBallY, ball.x, ball.y) < minDist * minDist) {
+            collided = true;
         }
     }
     if (!collided) return;
 
-    if (!tunneled && !isHardModeForNutmeg() && canNutmeg(p)) {
-        var ballIsLow = (ball.y > p.y + p.radius * NUTMEG_LOW_FACTOR);
-        var ballIsFast = (abs(ball.vx) > NUTMEG_MIN_SPEED);
-        var movingToward = (ball.vx * (p.x - ball.x)) > 0;
-        if (ballIsLow && ballIsFast && movingToward) {
-            var dirSign = (ball.vx >= 0) ? 1 : -1;
-            ball.x = p.x + dirSign * (minDist + 0.5);
-            ball.vx = ball.vx * 1.1 + dirSign * 1.0;
-            ball.vy *= 0.88;
-            spawnBurst(ball.x, ball.y, color(255, 240, 140));
-            return;
-        }
+    var dist = Math.sqrt(distSq);
+    var nx, ny;
+    if (dist < 0.001) {
+        var pvx = p.vx || 0, pvy = p.vy || 0;
+        var pv = Math.sqrt(pvx*pvx + pvy*pvy);
+        if (pv > 0.01) { nx = pvx / pv; ny = pvy / pv; }
+        else { nx = (ball.vx >= 0) ? -1 : 1; ny = 0; }
+    } else {
+        nx = dx / dist; ny = dy / dist;
     }
 
-    var angle = atan2(dy, dx);
-    ball.x = p.x + cos(angle)*minDist;
-    ball.y = p.y + sin(angle)*minDist;
-    ball.vx = cos(angle)*8.5 + p.vx*0.45;
-    ball.vy = sin(angle)*8.5 + p.vy*0.45;
+    var snapDist = minDist + 0.5;
+    ball.x = p.x + nx * snapDist;
+    ball.y = p.y + ny * snapDist;
+
+    var relVx = ball.vx - p.vx;
+    var relVy = ball.vy - p.vy;
+    var vn = relVx * nx + relVy * ny;
+    if (vn < 0) { relVx -= 2 * vn * nx; relVy -= 2 * vn * ny; }
+
+    var restitution = 0.85;
+    var sepSpeed = 2.2;
+    ball.vx = relVx * restitution + p.vx * 0.55 + nx * sepSpeed;
+    ball.vy = relVy * restitution + p.vy * 0.55 + ny * sepSpeed;
+
+    if (Math.abs(ball.vx) + Math.abs(ball.vy) < 1.2) {
+        ball.vx = nx * 2.6;
+        ball.vy = ny * 2.6;
+    }
+
     if (ball.teamIndex !== p.teamIndex) {
         ball.teamIndex = p.teamIndex;
         spawnBurst(ball.x, ball.y, teamColors[p.teamIndex]);
-    } else spawnBurst(ball.x, ball.y, color(255, 230, 100));
+    }
 };
+
 var checkCollisions = function(prevBallX, prevBallY) {
     resolveCollision(player1, prevBallX, prevBallY);
     resolveCollision(player2, prevBallX, prevBallY);
@@ -2525,12 +1859,10 @@ var drawPitch = function() {
 
 var drawPitchDark = function() {
     var y, i;
-    // Deep navy stadium, warmer
     for (y = 0; y < 88; y += 4) {
         var t = y / 88;
         var c = lerpColor(color(11, 18, 34), color(28, 44, 78), t);
-        noStroke(); fill(c);
-        rect(0, y, canvasWidth, 4);
+        noStroke(); fill(c); rect(0, y, canvasWidth, 4);
     }
     for (i = 0; i < 340; i++) {
         var cx = (i*47+13) % 400, cy = 4 + ((i*53+7) % 78);
@@ -2543,14 +1875,6 @@ var drawPitchDark = function() {
         else col = color(240, 240, 240);
         fill(red(col), green(col), blue(col), 130);
         noStroke(); ellipse(cx, cy, 3.5, 3.5);
-    }
-    stroke(0, 0, 0, 60); strokeWeight(1);
-    for (i = 0; i < 8; i++) line(i*55+20, 0, i*55+20, 86);
-    for (i = 0; i < 4; i++) {
-        var a = 34 - i*7;
-        noStroke(); fill(255, 250, 210, a);
-        ellipse(50, 6, 120 - i*22, 70 - i*14);
-        ellipse(350, 6, 120 - i*22, 70 - i*14);
     }
     fill(28, 40, 66); noStroke(); rect(0, 0, canvasWidth, 5);
     fill(70, 92, 132); rect(0, 4, canvasWidth, 2);
@@ -2574,14 +1898,8 @@ var drawPitchDark = function() {
     ellipse(200, 285, 70, 35);
     line(0, 350, canvasWidth, 350);
     stroke(220, 220, 220, 130); strokeWeight(1);
-    for (var gx = 0; gx < goalWidth; gx += 8) {
-        line(gx, 350 - goalHeight, gx, 350);
-        line(canvasWidth - gx, 350 - goalHeight, canvasWidth - gx, 350);
-    }
-    for (var gy = 350 - goalHeight; gy < 350; gy += 10) {
-        line(0, gy, goalWidth, gy);
-        line(canvasWidth - goalWidth, gy, canvasWidth, gy);
-    }
+    for (var gx = 0; gx < goalWidth; gx += 8) { line(gx, 350 - goalHeight, gx, 350); line(canvasWidth - gx, 350 - goalHeight, canvasWidth - gx, 350); }
+    for (var gy = 350 - goalHeight; gy < 350; gy += 10) { line(0, gy, goalWidth, gy); line(canvasWidth - goalWidth, gy, canvasWidth, gy); }
     stroke(0, 0, 0, 150); strokeWeight(7); noFill();
     rect(2, 350 - goalHeight + 3, goalWidth, goalHeight);
     rect(canvasWidth - goalWidth - 2, 350 - goalHeight + 3, goalWidth, goalHeight);
@@ -2598,8 +1916,7 @@ var drawPitchLight = function() {
     for (y = 0; y < 88; y += 4) {
         var t = y / 88;
         var c = lerpColor(color(148, 170, 194), color(178, 198, 218), t);
-        noStroke(); fill(c);
-        rect(0, y, canvasWidth, 4);
+        noStroke(); fill(c); rect(0, y, canvasWidth, 4);
     }
     for (i = 0; i < 340; i++) {
         var cx = (i*47+13) % 400, cy = 4 + ((i*53+7) % 78);
@@ -2612,14 +1929,6 @@ var drawPitchLight = function() {
         else col = color(226, 226, 226);
         fill(red(col), green(col), blue(col), 170);
         noStroke(); ellipse(cx, cy, 3.5, 3.5);
-    }
-    stroke(80, 100, 128, 60); strokeWeight(1);
-    for (i = 0; i < 8; i++) line(i*55+20, 0, i*55+20, 86);
-    for (i = 0; i < 4; i++) {
-        var a = 32 - i*7;
-        noStroke(); fill(255, 248, 220, a);
-        ellipse(50, 6, 120 - i*22, 70 - i*14);
-        ellipse(350, 6, 120 - i*22, 70 - i*14);
     }
     fill(120, 140, 164); noStroke(); rect(0, 0, canvasWidth, 5);
     fill(158, 176, 198); rect(0, 4, canvasWidth, 2);
@@ -2644,14 +1953,8 @@ var drawPitchLight = function() {
     line(0, 350, canvasWidth, 350);
 
     stroke(248, 250, 254, 150); strokeWeight(1);
-    for (var gx = 0; gx < goalWidth; gx += 8) {
-        line(gx, 350 - goalHeight, gx, 350);
-        line(canvasWidth - gx, 350 - goalHeight, canvasWidth - gx, 350);
-    }
-    for (var gy = 350 - goalHeight; gy < 350; gy += 10) {
-        line(0, gy, goalWidth, gy);
-        line(canvasWidth - goalWidth, gy, canvasWidth, gy);
-    }
+    for (var gx = 0; gx < goalWidth; gx += 8) { line(gx, 350 - goalHeight, gx, 350); line(canvasWidth - gx, 350 - goalHeight, canvasWidth - gx, 350); }
+    for (var gy = 350 - goalHeight; gy < 350; gy += 10) { line(0, gy, goalWidth, gy); line(canvasWidth - goalWidth, gy, canvasWidth, gy); }
     stroke(72, 92, 118, 150); strokeWeight(7); noFill();
     rect(2, 350 - goalHeight + 3, goalWidth, goalHeight);
     rect(canvasWidth - goalWidth - 2, 350 - goalHeight + 3, goalWidth, goalHeight);
@@ -2665,7 +1968,7 @@ var drawPitchLight = function() {
 
 var drawPlayer = function(p) {
     var lookDir = (p.x < ball.x) ? 1 : -1;
-    drawCountryball(p.teamIndex, p.x, p.y, p.radius, lookDir);
+    drawCountryball(p.teamIndex, p.x, p.y, p.radius, lookDir, 350);
     var labelY = p.y - p.radius - 8;
     if (retroMode) {
         fill(0, 110); noStroke();
@@ -2673,31 +1976,43 @@ var drawPlayer = function(p) {
         fill(255); textSize(9); textAlign(CENTER);
         text(p.name, p.x, p.y + p.radius + 11);
     } else {
+        // Soft drop shadow for the nameplate (matches CSS --shadow-sm)
+        noStroke(); fill(0, 0, 0, lightMode ? 22 : 60);
+        rect(p.x - 21, labelY - 5, 44, 12, 4);
         fill(lightMode ? color(255, 255, 255, 240) : color(20, 30, 52, 230));
-        stroke(lightMode ? color(120, 155, 200) : color(91, 141, 250, 200));
-        strokeWeight(1.2);
-        rect(p.x - 22, labelY - 6, 44, 12, 3);
-        fill(theme.text);
-        textAlign(CENTER, CENTER); textSize(8);
+        stroke(lightMode ? color(210, 221, 238) : color(61, 80, 120, 200));
+        strokeWeight(1);
+        rect(p.x - 22, labelY - 6, 44, 12, 4);
+        fill(theme.text); textAlign(CENTER, CENTER); textSize(8);
+        textStyle(BOLD);
         text(p.name, p.x, labelY);
+        textStyle(NORMAL);
     }
 };
 
 var drawBall = function() {
+    var groundY = 349;
     if (retroMode) {
+        noStroke(); fill(0,0,0,70);
+        ellipse(ball.x + 1, groundY, ball.radius*2.2, 6);
         fill(255); stroke(0); strokeWeight(1.5);
         ellipse(ball.x, ball.y, ball.radius*2, ball.radius*2);
         return;
     }
-    noStroke(); fill(0, 0, 0, 80);
-    ellipse(ball.x + 1, 350 - 2, ball.radius*2.1, 6);
-    fill(0, 0, 0, 40);
-    ellipse(ball.x + 1, 350 - 2, ball.radius*2.5, 9);
+    var lift = Math.max(0, groundY - (ball.y + ball.radius));
+    var shrink = Math.max(0.32, 1 - lift / 300);
+    noStroke();
+    fill(0, 0, 0, 16 * shrink);
+    ellipse(ball.x + 0.5, groundY + 1, ball.radius*3.0*shrink, ball.radius*0.72*shrink);
+    fill(0, 0, 0, 34 * shrink);
+    ellipse(ball.x + 0.5, groundY, ball.radius*2.4*shrink, ball.radius*0.60*shrink);
+    fill(0, 0, 0, 62 * shrink);
+    ellipse(ball.x + 0.5, groundY, ball.radius*1.9*shrink, ball.radius*0.44*shrink);
     drawBallScanlines(ball.x, ball.y, ball.radius, ball.teamIndex);
 };
 
 // ============================================================
-// COUNTRY GRID (canvas)
+// COUNTRY GRID — restyled to match the HTML/CSS card language
 // ============================================================
 var GRID_COLS = 6;
 var GRID_X = 6, GRID_Y = 30;
@@ -2712,67 +2027,176 @@ var getCountryCellRect = function(i) {
         w: GRID_CELL_W, h: GRID_CELL_H
     };
 };
+
 var drawCountryGrid = function(activeIdx) {
     for (var i = 0; i < tournamentTeams.length; i++) {
         var r = getCountryCellRect(i);
         var isSel = (i === activeIdx);
-        // shadow
-        noStroke(); fill(0, 0, 0, 30);
-        rect(r.x + 1, r.y + 2, r.w, r.h, 4);
-        fill(isSel ? theme.cardSel : theme.card);
-        stroke(isSel ? theme.cardSelStroke : theme.cardStroke);
-        strokeWeight(isSel ? 2 : 1);
-        rect(r.x, r.y, r.w, r.h, 4);
-        drawFlag(i, r.x + 2, r.y + 2, r.w - 4, 24);
+        var corner = 7;
+
+        // --- layered drop shadow (mimics CSS --shadow-md) ---
+        noStroke();
+        fill(red(theme.shadowSoft), green(theme.shadowSoft), blue(theme.shadowSoft), alpha(theme.shadowSoft));
+        rect(r.x + 1, r.y + 3, r.w, r.h, corner);
+        fill(red(theme.shadowMid), green(theme.shadowMid), blue(theme.shadowMid), alpha(theme.shadowMid));
+        rect(r.x + 1, r.y + 2, r.w, r.h, corner);
+
+        // --- selection glow ring (like CSS box-shadow 0 0 0 3px var(--ring)) ---
+        if (isSel) {
+            var acc = theme.cardSelStroke;
+            noFill();
+            stroke(red(acc), green(acc), blue(acc), 70);
+            strokeWeight(5);
+            rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, corner + 2);
+            stroke(red(acc), green(acc), blue(acc), 150);
+            strokeWeight(2.4);
+            rect(r.x - 0.6, r.y - 0.6, r.w + 1.2, r.h + 1.2, corner + 1);
+        }
+
+        // --- card body ---
+        noStroke();
+        fill(theme.card);
+        rect(r.x, r.y, r.w, r.h, corner);
+
+        // subtle top-edge gradient highlight (like CSS button inset highlight)
+        noStroke();
+        fill(255, 255, 255, lightMode ? 70 : 16);
+        rect(r.x + 1, r.y + 1, r.w - 2, 2.5, corner - 1);
+
+        // --- card border ---
+        noFill();
+        stroke(theme.cardStroke);
+        strokeWeight(1);
+        rect(r.x, r.y, r.w, r.h, corner);
+
+        // --- selected: bold accent border on top ---
+        if (isSel) {
+            noFill();
+            stroke(theme.cardSelStroke);
+            strokeWeight(1.8);
+            rect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, corner - 0.5);
+        }
+
+        // --- flag preview (rounded, with drop shadow) ---
+        var fw = r.w - 8, fh = 21;
+        var fx = r.x + 4, fy = r.y + 4;
+        var flagR = 3;
+
+        // flag shadow
+        noStroke(); fill(0, 0, 0, lightMode ? 16 : 46);
+        rect(fx + 0.5, fy + 1.5, fw, fh, flagR);
+
+        if (retroMode) {
+            noStroke(); fill(teamColors[i] || color(100));
+            rect(fx, fy, fw, fh, flagR);
+        } else {
+            var sprite = getFlagSprite(i, Math.round(fw), Math.round(fh));
+            // Rounded clip when supported
+            var usedClip = false;
+            if (drawingContext && typeof drawingContext.roundRect === 'function') {
+                drawingContext.save();
+                drawingContext.beginPath();
+                drawingContext.roundRect(fx, fy, fw, fh, flagR);
+                drawingContext.clip();
+                usedClip = true;
+            }
+            image(sprite, fx, fy, fw, fh);
+            if (usedClip) drawingContext.restore();
+        }
+        noFill(); stroke(0, 45); strokeWeight(0.8);
+        rect(fx, fy, fw, fh, flagR);
+
+        // --- code strip ---
+        var stripY = r.y + r.h - 12;
+        var stripH = 9;
+        noStroke();
         fill(isSel ? theme.cardLabelSel : theme.cardLabel);
-        stroke(isSel ? theme.cardSelStroke : theme.cardStroke);
-        rect(r.x + 2, r.y + 27, r.w - 4, 11, 3);
-        fill(theme.cardLabelText); textAlign(CENTER, CENTER); textSize(8);
-        text(tournamentTeams[i], r.x + r.w/2, r.y + 32);
+        rect(r.x + 4, stripY, r.w - 8, stripH, 3);
+
+        fill(theme.cardLabelText);
+        textAlign(CENTER, CENTER);
+        textSize(8);
+        textStyle(BOLD);
+        text(tournamentTeams[i], r.x + r.w/2, stripY + stripH/2 + 0.5);
+        textStyle(NORMAL);
+
+        // --- selection accent dot ---
+        if (isSel) {
+            noStroke();
+            fill(theme.cardSelStroke);
+            ellipse(r.x + r.w - 7, r.y + 7, 5.5, 5.5);
+            fill(255, 240);
+            ellipse(r.x + r.w - 7.6, r.y + 6.4, 2, 2);
+        }
     }
 };
 
 // ============================================================
-// BRACKET (canvas)
+// BRACKET
 // ============================================================
 var drawBracketMatchNode = function(x, y, w, h, match) {
+    noStroke(); fill(0, 0, 0, lightMode ? 20 : 55);
+    rect(x + 1, y + 1, w, h, 3);
+
     fill(theme.card); stroke(theme.cardStroke); strokeWeight(1); rect(x, y, w, h, 3);
+
     if (!match) return;
     var halfH = h / 2;
+
     if (match.t1 !== null && match.t1 !== undefined) {
+        var isWinner1 = (match.winner === match.t1);
+        if (isWinner1) {
+            noStroke(); fill(theme.winText[0], theme.winText[1], theme.winText[2], 40);
+            rect(x + 1, y + 1, w - 2, halfH - 1, 2);
+        }
         drawFlag(match.t1, x + 2, y + 1, 12, 7);
-        fill(match.winner === match.t1 ? theme.winText : theme.text);
+        fill(isWinner1 ? theme.winText : theme.text);
         textSize(6); textAlign(LEFT, CENTER);
         var name1 = (match.t1 === selectedCountry) ? username : tournamentTeams[match.t1];
         if (name1.length > 9) name1 = name1.substring(0, 8) + ".";
         var s1 = (match.s1 !== null) ? " " + match.s1 : "";
-        text(name1 + s1, x + 16, y + halfH*0.5 + 0.5);
+        text(name1 + s1, x + 16, y + halfH * 0.5 + 0.5);
     }
-    stroke(theme.cardStroke); line(x + 2, y + halfH, x + w - 2, y + halfH);
+    stroke(theme.cardStroke); strokeWeight(0.8); line(x + 2, y + halfH, x + w - 2, y + halfH);
     if (match.t2 !== null && match.t2 !== undefined) {
+        var isWinner2 = (match.winner === match.t2);
+        if (isWinner2) {
+            noStroke(); fill(theme.winText[0], theme.winText[1], theme.winText[2], 40);
+            rect(x + 1, y + halfH + 1, w - 2, halfH - 1, 2);
+        }
         drawFlag(match.t2, x + 2, y + halfH + 1, 12, 7);
-        fill(match.winner === match.t2 ? theme.winText : theme.text);
+        fill(isWinner2 ? theme.winText : theme.text);
         textSize(6); textAlign(LEFT, CENTER);
         var name2 = (match.t2 === selectedCountry) ? username : tournamentTeams[match.t2];
         if (name2.length > 9) name2 = name2.substring(0, 8) + ".";
         var s2 = (match.s2 !== null) ? " " + match.s2 : "";
-        text(name2 + s2, x + 16, y + halfH*1.5 + 0.5);
+        text(name2 + s2, x + 16, y + halfH * 1.5 + 0.5);
     }
 };
+
 var drawBracketConnector = function(xFrom, yA, yB, xTo) {
-    var xVert = xFrom + (xTo - xFrom)*0.5;
-    var yMid = (yA + yB)/2;
+    var xVert = xFrom + (xTo - xFrom) * 0.5;
+    var yMid = (yA + yB) / 2;
     line(xFrom, yA, xVert, yA);
     line(xFrom, yB, xVert, yB);
     line(xVert, yA, xVert, yB);
     line(xVert, yMid, xTo, yMid);
 };
+
+var canvasButtons = [];
+var drawCanvasButton = function(x, y, w, h, label, accent, action) {
+    noStroke(); fill(0, 0, 0, lightMode ? 25 : 55);
+    rect(x + 1, y + 2, w, h, 6);
+    fill(theme.card); stroke(theme.cardStroke); strokeWeight(1);
+    rect(x, y, w, h, 6);
+    fill(theme.text); textAlign(CENTER, CENTER); textSize(11);
+    text(label, x + w/2, y + h/2);
+    canvasButtons.push({ x: x, y: y, w: w, h: h, action: action });
+};
+
 var drawBracketScreen = function() {
     drawPitch();
-    // backdrop
-    var stage = document.getElementById('stage');
-    if (lightMode) fill(246, 249, 252, 210);
-    else fill(12, 19, 34, 200);
+    if (lightMode) fill(246, 249, 252, 210); else fill(12, 19, 34, 200);
     rect(0, 0, canvasWidth, canvasHeight);
 
     var rNames = ["Round of 32", "Round of 16", "Quarterfinals", "Semifinals", "Final", "Complete"];
@@ -2780,26 +2204,17 @@ var drawBracketScreen = function() {
     var playerInBracket = isPlayerInBracket();
     var playerEliminated = !playerInBracket || isPlayerEliminated();
 
-    fill(theme.text); textAlign(CENTER, CENTER); textSize(12);
+    fill(theme.text); textAlign(CENTER, CENTER); textSize(11);
     text("WORLD CUP TOURNAMENT", 200, 10);
 
-    if (playerWonTournament) {
-        fill(theme.winText); textSize(10);
-        text("CHAMPION: " + username.toUpperCase(), 200, 22);
-    } else if (!playerInBracket) {
-        fill(theme.danger); textSize(10);
-        text("ELIMINATED IN GROUP STAGE", 200, 22);
-    } else if (playerEliminated) {
-        fill(theme.danger); textSize(10);
-        text(username.toUpperCase() + " ELIMINATED", 200, 22);
-    } else {
-        fill(theme.gold); textSize(9);
-        text(rNames[min(5, tournamentRound - 1)], 200, 22);
-    }
+    if (playerWonTournament) { fill(theme.winText); textSize(10); text("★ CHAMPION: " + username.toUpperCase() + " ★", 200, 22); }
+    else if (!playerInBracket) { fill(theme.danger); textSize(10); text("ELIMINATED IN GROUP STAGE", 200, 22); }
+    else if (playerEliminated) { fill(theme.danger); textSize(10); text(username.toUpperCase() + " ELIMINATED", 200, 22); }
+    else { fill(theme.gold); textSize(9); text("Phase · " + rNames[min(5, tournamentRound - 1)], 200, 22); }
 
     var colX = [8, 88, 169, 249, 330];
     var nw = 62, nh = 16, startY = 32, sp = 20, i;
-    stroke(theme.lineCol); strokeWeight(1); noFill();
+    stroke(theme.lineCol); strokeWeight(1.2); noFill();
     for (i = 0; i < 8; i++) {
         var yA = startY + (2*i)*sp + nh/2, yB = startY + (2*i+1)*sp + nh/2;
         drawBracketConnector(colX[0]+nw, yA, yB, colX[1]);
@@ -2820,15 +2235,12 @@ var drawBracketScreen = function() {
     for (i = 0; i < 2; i++) drawBracketMatchNode(colX[3], startY + (8*i+3.5)*sp, nw, nh, bracket.r3[i]);
     drawBracketMatchNode(colX[4], startY + 7.5*sp, nw, nh, bracket.r4[0]);
 
-    // Bottom action bar
     noStroke();
-    if (lightMode) fill(255, 255, 255, 240);
-    else fill(22, 33, 58, 240);
+    if (lightMode) fill(255, 255, 255, 240); else fill(22, 33, 58, 240);
     rect(0, 348, canvasWidth, 52);
     stroke(theme.cardStroke); strokeWeight(1); line(0, 348, canvasWidth, 348);
     noStroke();
 
-    var btnLabels = [], btnActions = [];
     if (playerWonTournament) {
         drawCanvasButton(110, 358, 180, 30, "Main Menu", theme.gold, "bracket-menu");
     } else if (playerEliminated) {
@@ -2840,24 +2252,13 @@ var drawBracketScreen = function() {
         drawCanvasButton(110, 358, 180, 30, "Play Next Match", theme.winText, "bracket-play");
     }
 };
-var canvasButtons = [];
-var drawCanvasButton = function(x, y, w, h, label, accentRGB, action) {
-    fill(0, 0, 0, 50);
-    rect(x + 1, y + 2, w, h, 6);
-    fill(theme.card); stroke(theme.cardStroke); strokeWeight(1);
-    rect(x, y, w, h, 6);
-    fill(theme.text); textAlign(CENTER, CENTER); textSize(11);
-    text(label, x + w/2, y + h/2);
-    canvasButtons.push({ x: x, y: y, w: w, h: h, action: action });
-};
 
 // ============================================================
-// GROUPS SCREEN (canvas)
+// GROUPS SCREEN
 // ============================================================
 var drawGroupsScreen = function() {
     drawPitch();
-    if (lightMode) fill(246, 249, 252, 205);
-    else fill(12, 19, 34, 200);
+    if (lightMode) fill(246, 249, 252, 205); else fill(12, 19, 34, 200);
     rect(0, 0, canvasWidth, canvasHeight);
 
     fill(theme.text); textAlign(CENTER, CENTER); textSize(14);
@@ -2889,9 +2290,7 @@ var drawGroupsScreen = function() {
         if (name.length > 10) name = name.substring(0, 9) + ".";
         text(name, 50, ry + 12);
         textAlign(CENTER, CENTER);
-        text(row.p, 210, ry + 12);
-        text(row.w, 234, ry + 12);
-        text(row.d, 258, ry + 12);
+        text(row.p, 210, ry + 12); text(row.w, 234, ry + 12); text(row.d, 258, ry + 12);
         text(row.l, 282, ry + 12);
         text((row.gd >= 0 ? "+" : "") + row.gd, 312, ry + 12);
         text(row.pts, 350, ry + 12);
@@ -2928,570 +2327,17 @@ var drawGroupsScreen = function() {
 };
 
 // ============================================================
-// HTML UI LAYER
+// PENALTY SCENE
 // ============================================================
-var currentScreenId = null;
-
-var HUD_SCREENS = { PLAYING: 1, OVERTIME: 1, HALFTIME: 1, PENALTIES: 1 };
-
-var screenForState = function() {
-    if (paused) return 'screen-pause';
-    switch (gameState) {
-        case 'TITLE': return 'screen-title';
-        case 'SETTINGS': return 'screen-settings';
-        case 'DIFFICULTY_SELECT': return 'screen-difficulty';
-        case 'MATCH_START': return 'screen-matchstart';
-        case 'MATCH_END': return 'screen-matchend';
-        default: return null;
+var drawPenaltyScene = function() {
+    if (!paused && penBallState === "KICKED") {
+        var progress = min(1, (millis() - penTimer) / 600);
+        if (progress >= 1) evaluatePenaltyFrameResult();
     }
-};
 
-var setScreen = function(id) {
-    if (currentScreenId === id) return;
-    currentScreenId = id;
-    document.querySelectorAll('.screen').forEach(function(el) { el.hidden = (el.id !== id); });
-};
-
-var setHUDVisible = function(visible) {
-    var hud = document.getElementById('hud');
-    var pb = document.getElementById('pause-button');
-    if (hud) hud.hidden = !visible;
-    if (pb) pb.hidden = !visible;
-};
-
-var _lastHudKey = '';
-var updateHUDContent = function() {
-    var key = score1 + '|' + score2 + '|' + currentPeriod + '|' + Math.floor((millis() - timerStart)/1000) + '|' + player1.teamIndex + '|' + player2.teamIndex + '|' + player1.name + '|' + player2.name;
-    if (key === _lastHudKey) return;
-    _lastHudKey = key;
-
-    document.getElementById('hud-s1').textContent = score1;
-    document.getElementById('hud-s2').textContent = score2;
-    document.getElementById('hud-name1').textContent = player1.name;
-    document.getElementById('hud-name2').textContent = player2.name;
-
-    var flag1El = document.getElementById('hud-flag1');
-    var flag2El = document.getElementById('hud-flag2');
-    flag1El.style.backgroundImage = 'url(' + flagDataURL(player1.teamIndex, 30, 20) + ')';
-    flag2El.style.backgroundImage = 'url(' + flagDataURL(player2.teamIndex, 30, 20) + ')';
-
-    var timeElapsed = floor((millis() - timerStart)/1000);
-    var targetSecs = (currentPeriod === 3) ? extraTimeDuration : periodDuration;
-    var displaySecs = max(0, targetSecs - timeElapsed);
-    var label;
-    if (inGroupStage && gameState !== 'PENALTIES') {
-        label = "Group " + getPlayerGroupLetter() + " · Match " + (playerMatchesPlayed + 1) + "/3";
-    } else if (currentPeriod === 1) label = "1st Half";
-    else if (currentPeriod === 2) label = "2nd Half";
-    else label = "Extra Time";
-    if (gameState === 'PENALTIES') label = "Penalties";
-    document.getElementById('hud-clock').textContent = label + ' · ' + displaySecs + 's';
-};
-
-var flagDataURL = function(idx, w, h) {
-    // Cache small flags as data URLs for the HUD
-    var key = 'f' + idx + '_' + w + 'x' + h;
-    if (flagDataURL._c && flagDataURL._c[key]) return flagDataURL._c[key];
-    if (!flagDataURL._c) flagDataURL._c = {};
-    var g = createGraphics(w, h);
-    g.pixelDensity(2);
-    g.noStroke();
     if (retroMode) {
-        g.fill(teamColors[idx] || color(100));
-        g.rect(0, 0, w, h);
-    } else {
-        for (var py = 0; py < h; py++) {
-            var ny = ((py + 0.5)/h)*2 - 1;
-            var lastR = -1, lastG = -1, lastB = -1, segStart = 0;
-            for (var px = 0; px <= w; px++) {
-                var rgb;
-                if (px < w) { var nx = ((px + 0.5)/w)*2 - 1; rgb = getFlagRGB(idx, nx, ny); }
-                else rgb = [-1,-1,-1];
-                if (rgb[0] !== lastR || rgb[1] !== lastG || rgb[2] !== lastB) {
-                    if (lastR >= 0) { g.fill(lastR, lastG, lastB); g.rect(segStart, py, px - segStart, 1); }
-                    lastR = rgb[0]; lastG = rgb[1]; lastB = rgb[2]; segStart = px;
-                }
-            }
-        }
-    }
-    var url = g.canvas.toDataURL();
-    flagDataURL._c[key] = url;
-    return url;
-};
-
-var refreshAllUI = function() {
-    // Title screen content
-    var gn = document.getElementById('greeting-name');
-    if (gn) gn.textContent = username;
-    var fn = document.getElementById('footer-note');
-    if (fn) {
-        fn.textContent = isSignedIn()
-            ? "Signed in as " + username + " · Progress saved"
-            : "Not signed in · Sign in via Settings to save progress";
-    }
-    var btnContinue = document.getElementById('btn-continue');
-    if (btnContinue) btnContinue.hidden = !(savedGame !== null && isSignedIn());
-
-    // Settings fields
-    var inputUser = document.getElementById('input-username');
-    if (inputUser && document.activeElement !== inputUser) inputUser.value = username === "Player" ? "" : username;
-    var inputPass = document.getElementById('input-password');
-    if (inputPass) {
-        inputPass.type = passwordVisible ? 'text' : 'password';
-    }
-    var togHT = document.getElementById('tog-ht'); if (togHT) togHT.checked = halftimeEnabled;
-    var togMob = document.getElementById('tog-mobile'); if (togMob) togMob.checked = mobileControlsEnabled;
-    var togRetro = document.getElementById('tog-retro'); if (togRetro) togRetro.checked = retroMode;
-    var togDark = document.getElementById('tog-dark'); if (togDark) togDark.checked = !lightMode;
-
-    var segArr = document.getElementById('seg-arrows');
-    var segWasd = document.getElementById('seg-wasd');
-    if (segArr) segArr.setAttribute('aria-pressed', p1ControlMode === 'ARROWS' ? 'true' : 'false');
-    if (segWasd) segWasd.setAttribute('aria-pressed', p1ControlMode === 'WASD' ? 'true' : 'false');
-
-    // Achievements
-    var ab = document.getElementById('ach-brazil');
-    if (ab) ab.classList.toggle('unlocked', !!achievements.brazilAward);
-    var av = document.getElementById('ach-victory');
-    if (av) av.classList.toggle('unlocked', !!achievements.victory);
-    var ac = document.getElementById('ach-champion');
-    if (ac) ac.classList.toggle('unlocked', !!achievements.champion);
-
-    // Difficulty
-    document.querySelectorAll('.diff-card').forEach(function(card) {
-        card.setAttribute('aria-pressed', card.dataset.diff === difficulty ? 'true' : 'false');
-    });
-
-    // Match start
-    if (gameState === 'MATCH_START') {
-        var isLocal = (gameMode === 'LOCAL');
-        var p1C = selectedCountry;
-        var p2C = isLocal ? p2Country : aiCountry;
-        var n1 = isLocal ? tempName1 : username;
-        var n2 = isLocal ? tempName2 : tournamentTeams[aiCountry];
-        var el1 = document.getElementById('ms-name1'); if (el1) el1.textContent = n1;
-        var el2 = document.getElementById('ms-name2'); if (el2) el2.textContent = n2;
-        var ec1 = document.getElementById('ms-country1'); if (ec1) ec1.textContent = tournamentTeams[p1C];
-        var ec2 = document.getElementById('ms-country2'); if (ec2) ec2.textContent = tournamentTeams[p2C];
-        var em = document.getElementById('ms-mode');
-        if (em) em.textContent = isLocal ? 'Local 2-Player' : 'Single Player · ' + difficulty;
-        var eg = document.getElementById('ms-group');
-        if (eg) {
-            if (inGroupStage) { eg.hidden = false; eg.textContent = "Group " + getPlayerGroupLetter() + " · Match " + (playerMatchesPlayed + 1) + " of 3"; }
-            else eg.hidden = true;
-        }
-    }
-
-    // Match end
-    if (gameState === 'MATCH_END') {
-        var badge = document.getElementById('me-badge');
-        var nameEl = document.getElementById('me-name');
-        var scoreEl = document.getElementById('me-score');
-        if (badge && nameEl && scoreEl) {
-            nameEl.classList.remove('win', 'loss', 'draw');
-            badge.classList.remove('win', 'loss', 'draw');
-            if (matchIsWin) {
-                badge.classList.add('win'); badge.textContent = 'Victory';
-                nameEl.classList.add('win');
-                nameEl.textContent = matchWinnerName.toUpperCase() + ' WINS';
-            } else if (matchIsDraw) {
-                badge.classList.add('draw'); badge.textContent = 'Draw';
-                nameEl.classList.add('draw');
-                nameEl.textContent = 'MATCH DRAWN';
-            } else {
-                badge.classList.add('loss'); badge.textContent = 'Defeat';
-                nameEl.classList.add('loss');
-                nameEl.textContent = 'YOU LOST';
-            }
-            scoreEl.textContent = matchScoreLine;
-        }
-    }
-
-    // Pause note
-    var pn = document.getElementById('pause-note');
-    if (pn) pn.textContent = isSignedIn()
-        ? "Save keeps score, timer, and tournament progress."
-        : "Sign in to save progress across sessions.";
-};
-
-var syncUI = function() {
-    var wanted = screenForState();
-    setScreen(wanted);
-    var showHud = HUD_SCREENS[gameState] && !paused;
-    setHUDVisible(!!showHud);
-    if (showHud) updateHUDContent();
-};
-
-// --- Wire HTML buttons ---
-var onAction = function(action) {
-    switch (action) {
-        case 'continue': if (savedGame !== null) restoreSavedGame(); break;
-        case 'single': gameMode = "SINGLE"; gameState = "TOURNAMENT_SELECT"; break;
-        case 'local':
-            if (!mobileControlsEnabled) {
-                gameMode = "LOCAL";
-                tempName1 = "Player 1"; tempName2 = "Player 2"; p2Country = 1;
-                gameState = "P1_NAME";
-            }
-            break;
-        case 'penalty': gameMode = "PENALTY_ONLY"; gameState = "PENALTY_P1_SELECT"; break;
-        case 'settings': gameState = "SETTINGS"; refreshAllUI(); break;
-        case 'settings-back':
-            // commit username if changed
-            var iu = document.getElementById('input-username');
-            if (iu) { var v = iu.value.trim(); username = v.length > 0 ? v : 'Player'; }
-            var ip = document.getElementById('input-password');
-            if (ip && ip.value.length > 0) { checkPasswordMatch(ip.value); ip.value = ''; }
-            closeAllDropdowns();
-            saveSettings();
-            saveActiveSession();
-            gameState = "TITLE";
-            refreshAllUI();
-            break;
-        case 'toggle-pass': passwordVisible = !passwordVisible; refreshAllUI(); break;
-        case 'difficulty-back': gameState = "TOURNAMENT_SELECT"; break;
-        case 'difficulty-continue':
-            buildGroups();
-            aiCountry = getPlayerOpponent(0);
-            gameState = "MATCH_START";
-            refreshAllUI();
-            break;
-        case 'matchstart-begin':
-            score1 = 0; score2 = 0; currentPeriod = 1;
-            initEntities(); timerStart = millis();
-            gameState = "PLAYING";
-            break;
-        case 'matchend-continue': continueAfterMatch(); break;
-        case 'pause-resume': unpauseGame(); break;
-        case 'pause-save': saveCurrentGame(); abandonGame(); break;
-        case 'pause-menu': abandonGame(); break;
-    }
-};
-
-var closeAllDropdowns = function() {};
-
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action]');
-    if (btn) { e.preventDefault(); onAction(btn.dataset.action); return; }
-    var seg = e.target.closest('[data-seg]');
-    if (seg) {
-        e.preventDefault();
-        if (seg.dataset.seg === 'p1ctrl') {
-            p1ControlMode = seg.dataset.value;
-            saveSettings();
-            refreshAllUI();
-        }
-        return;
-    }
-    var card = e.target.closest('[data-diff]');
-    if (card) {
-        e.preventDefault();
-        difficulty = card.dataset.diff;
-        saveSettings();
-        refreshAllUI();
-        return;
-    }
-});
-
-// Wire toggle checkboxes
-var wireToggle = function(id, onChange) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('change', function() {
-        onChange(el.checked);
-        saveSettings();
-        refreshAllUI();
-    });
-};
-wireToggle('tog-ht', function(v) { halftimeEnabled = v; });
-wireToggle('tog-mobile', function(v) { mobileControlsEnabled = v; });
-wireToggle('tog-retro', function(v) { retroMode = v; });
-wireToggle('tog-dark', function(v) { lightMode = !v; applyTheme(); });
-
-// Wire settings text inputs
-document.addEventListener('DOMContentLoaded', function() {
-    var iu = document.getElementById('input-username');
-    if (iu) {
-        iu.addEventListener('input', function() {
-            var v = iu.value.trim();
-            // Only apply live if it doesn't empty the field entirely
-            if (v.length > 0) username = v;
-            saveActiveSession();
-        });
-    }
-});
-
-// ============================================================
-// INPUT
-// ============================================================
-var keyPressed = function() {
-    keys[keyCode] = true;
-    if (keyCode === 80) { // P
-        if (gameState === "PLAYING" || gameState === "OVERTIME" || gameState === "HALFTIME" || gameState === "PENALTIES") {
-            if (paused) unpauseGame(); else pauseGame();
-        }
-        return;
-    }
-    if (paused) return;
-
-    if (gameState === "MATCH_END") {
-        if (keyCode === 10 || keyCode === 13 || keyCode === 32) continueAfterMatch();
-    }
-    if (gameState === "PENALTIES") {
-        if (keyCode === LEFT || keyCode === 37) triggerPenaltyShot("LEFT");
-        if (keyCode === RIGHT || keyCode === 39) triggerPenaltyShot("RIGHT");
-    }
-};
-var keyReleased = function() { keys[keyCode] = false; };
-
-// ============================================================
-// CANVAS CLICK HANDLING
-// ============================================================
-var canvasClickToPixels = function(cx, cy) {
-    // Map from CSS coords inside #stage (0..1) to canvas 0..400
-    return { x: cx * canvasWidth, y: cy * canvasHeight };
-};
-
-var handleCanvasClick = function(mx, my) {
-    // mx, my are in canvas pixel space (0..400)
-    // Handle canvas-only screens and in-game interactions
-    if (paused) return;
-
-    // Bracket action buttons
-    if (gameState === "BRACKET") {
-        for (var i = 0; i < canvasButtons.length; i++) {
-            var b = canvasButtons[i];
-            if (mx > b.x && mx < b.x + b.w && my > b.y && my < b.y + b.h) {
-                if (b.action === "bracket-menu") { gameState = "TITLE"; }
-                else if (b.action === "bracket-sim") { simulateCurrentRound(); }
-                else if (b.action === "bracket-play") { setNextAiOpponent(); gameState = "MATCH_START"; refreshAllUI(); }
-                return;
-            }
-        }
-        return;
-    }
-
-    // Groups action buttons
-    if (gameState === "GROUPS") {
-        for (var j = 0; j < canvasButtons.length; j++) {
-            var gb = canvasButtons[j];
-            if (mx > gb.x && mx < gb.x + gb.w && my > gb.y && my < gb.y + gb.h) {
-                if (gb.action === "groups-play") {
-                    aiCountry = getPlayerOpponent(playerMatchesPlayed);
-                    gameState = "MATCH_START"; refreshAllUI();
-                } else if (gb.action === "groups-continue") {
-                    var q = determineQualifiers();
-                    fillKnockoutBracket(q);
-                    inGroupStage = false;
-                    gameState = "BRACKET";
-                } else if (gb.action === "groups-bracket") {
-                    var q2 = determineQualifiers();
-                    fillKnockoutBracket(q2);
-                    inGroupStage = false;
-                    gameState = "BRACKET";
-                }
-                return;
-            }
-        }
-        return;
-    }
-
-    // Country select screens
-    if (gameState === "TOURNAMENT_SELECT" || gameState === "PENALTY_P1_SELECT" ||
-        gameState === "P1_COUNTRY" || gameState === "P2_COUNTRY") {
-        for (var k = 0; k < tournamentTeams.length; k++) {
-            var r = getCountryCellRect(k);
-            if (mx > r.x && mx < r.x + r.w && my > r.y && my < r.y + r.h) {
-                if (gameState === "TOURNAMENT_SELECT") {
-                    selectedCountry = k;
-                    savedGame = null; saveGameToStorage();
-                    if (gameMode === "SINGLE") gameState = "DIFFICULTY_SELECT";
-                    else { buildGroups(); inGroupStage = false; fillKnockoutBracket(determineQualifiers()); gameState = "BRACKET"; }
-                    refreshAllUI();
-                } else if (gameState === "PENALTY_P1_SELECT") {
-                    selectedCountry = k;
-                    do { aiCountry = floor(random(0, 48)); } while (aiCountry === selectedCountry);
-                    savedGame = null; saveGameToStorage();
-                    gameState = "PENALTIES"; setupPenaltyData();
-                } else if (gameState === "P1_COUNTRY") {
-                    selectedCountry = k; gameState = "P2_NAME";
-                } else if (gameState === "P2_COUNTRY") {
-                    p2Country = k; gameState = "MATCH_START";
-                    refreshAllUI();
-                }
-                return;
-            }
-        }
-        return;
-    }
-
-    // Penalty shot triggering on mobile
-    if (gameState === "PENALTIES" && mobileControlsEnabled) {
-        if (mx > 20 && mx < 120 && my > 330 && my < 390) { triggerPenaltyShot("LEFT"); return; }
-        if (mx > 280 && mx < 380 && my > 330 && my < 390) { triggerPenaltyShot("RIGHT"); return; }
-    }
-
-    // Joystick press in gameplay
-    if (gameState === "PLAYING" || gameState === "OVERTIME") {
-        if (mobileControlsEnabled && my > 260 && mx < canvasWidth * 0.72) {
-            handleJoystickPress(mx, my);
-        }
-        return;
-    }
-};
-
-// ============================================================
-// Pause
-// ============================================================
-var pauseGame = function() {
-    if (paused) return;
-    if (gameState !== "PLAYING" && gameState !== "OVERTIME" &&
-        gameState !== "HALFTIME" && gameState !== "PENALTIES") return;
-    paused = true; pauseStart = millis(); releaseJoystick();
-};
-var unpauseGame = function() {
-    if (!paused) return;
-    var delta = millis() - pauseStart;
-    if (gameState === "PLAYING" || gameState === "OVERTIME") timerStart += delta;
-    else if (gameState === "HALFTIME") breakStart += delta;
-    else if (gameState === "PENALTIES" && penBallState === "KICKED") penTimer += delta;
-    paused = false;
-};
-var abandonGame = function() {
-    paused = false; particles = []; releaseJoystick(); gameState = "TITLE"; refreshAllUI();
-};
-
-// ============================================================
-// SAVE / LOAD GAME STATE
-// ============================================================
-var copyMatches = function(arr) {
-    var out = [];
-    if (!arr) return out;
-    for (var i = 0; i < arr.length; i++) {
-        var m = arr[i];
-        out.push({ t1: m.t1, t2: m.t2, s1: m.s1, s2: m.s2, winner: m.winner });
-    }
-    return out;
-};
-var copyGroups = function(src) {
-    var out = [];
-    for (var i = 0; i < src.length; i++) {
-        var g = src[i];
-        var res = [];
-        for (var j = 0; j < g.results.length; j++) {
-            res.push(g.results[j] ? { sa: g.results[j].sa, sb: g.results[j].sb } : null);
-        }
-        out.push({ teams: g.teams.slice(0), results: res, standings: g.standings ? g.standings.slice(0) : null });
-    }
-    return out;
-};
-var captureSaveState = function() {
-    return {
-        gameMode: gameMode, gameState: gameState,
-        score1: score1, score2: score2, currentPeriod: currentPeriod,
-        elapsedMs: (gameState === "PLAYING" || gameState === "OVERTIME") ? (millis() - timerStart) : 0,
-        selectedCountry: selectedCountry, aiCountry: aiCountry, tournamentRound: tournamentRound,
-        bracket: {
-            r0: copyMatches(bracket.r0), r1: copyMatches(bracket.r1),
-            r2: copyMatches(bracket.r2), r3: copyMatches(bracket.r3), r4: copyMatches(bracket.r4)
-        },
-        groups: copyGroups(groups),
-        playerGroupIdx: playerGroupIdx, playerMatchesPlayed: playerMatchesPlayed,
-        inGroupStage: inGroupStage,
-        penaltyTurn: penaltyTurn, penaltyIndex: penaltyIndex,
-        p1PenScores: p1PenScores.slice(0), p2PenScores: p2PenScores.slice(0),
-        penBallState: penBallState, penGoalieState: penGoalieState, penBallDir: penBallDir,
-        player1: { x: player1.x, y: player1.y, vx: player1.vx, vy: player1.vy },
-        player2: { x: player2.x, y: player2.y, vx: player2.vx, vy: player2.vy },
-        ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, angle: ball.angle, teamIndex: ball.teamIndex }
-    };
-};
-var saveCurrentGame = function() { savedGame = captureSaveState(); saveGameToStorage(); };
-var restoreSavedGame = function() {
-    if (savedGame === null) return;
-    var s = savedGame;
-    gameMode = s.gameMode; gameState = s.gameState;
-    score1 = s.score1; score2 = s.score2; currentPeriod = s.currentPeriod;
-    selectedCountry = s.selectedCountry; aiCountry = s.aiCountry; tournamentRound = s.tournamentRound;
-    if (s.bracket) {
-        bracket.r0 = copyMatches(s.bracket.r0 || []);
-        bracket.r1 = copyMatches(s.bracket.r1 || []);
-        bracket.r2 = copyMatches(s.bracket.r2 || []);
-        bracket.r3 = copyMatches(s.bracket.r3 || []);
-        bracket.r4 = copyMatches(s.bracket.r4 || []);
-    }
-    if (s.groups) groups = copyGroups(s.groups);
-    if (s.playerGroupIdx !== undefined) playerGroupIdx = s.playerGroupIdx;
-    if (s.playerMatchesPlayed !== undefined) playerMatchesPlayed = s.playerMatchesPlayed;
-    if (s.inGroupStage !== undefined) inGroupStage = s.inGroupStage;
-    penaltyTurn = s.penaltyTurn; penaltyIndex = s.penaltyIndex;
-    p1PenScores = s.p1PenScores.slice(0); p2PenScores = s.p2PenScores.slice(0);
-    penBallState = s.penBallState; penGoalieState = s.penGoalieState; penBallDir = s.penBallDir;
-    initEntities();
-    if (s.player1) { player1.x = s.player1.x; player1.y = s.player1.y; player1.vx = s.player1.vx; player1.vy = s.player1.vy; }
-    if (s.player2) { player2.x = s.player2.x; player2.y = s.player2.y; player2.vx = s.player2.vx; player2.vy = s.player2.vy; }
-    if (s.ball) { ball.x = s.ball.x; ball.y = s.ball.y; ball.vx = s.ball.vx; ball.vy = s.ball.vy; ball.angle = s.ball.angle; ball.teamIndex = s.ball.teamIndex; }
-    if (gameState === "PLAYING" || gameState === "OVERTIME") timerStart = millis() - s.elapsedMs;
-    else if (gameState === "PENALTIES") penTimer = millis();
-    particles = []; paused = false; savedGame = null; saveGameToStorage();
-    refreshAllUI();
-};
-
-// ============================================================
-// LOOPS
-// ============================================================
-var runGameLoop = function() {
-    if (!paused) {
-        var periodMax = (currentPeriod === 3) ? extraTimeDuration : periodDuration;
-        if (floor((millis() - timerStart) / 1000) >= periodMax) { processPeriodEnd(); return; }
-        updatePlayer(player1, "P1_INPUT");
-        updatePlayer(player2, (gameMode === "SINGLE") ? "AI" : "P2_INPUT");
-        var prevBallX = ball.x, prevBallY = ball.y;
-        updateBall();
-        checkCollisions(prevBallX, prevBallY);
-        checkGoals();
-    }
-    drawPitch();
-    drawPlayer(player1);
-    drawPlayer(player2);
-    drawBall();
-    updateAndDrawParticles();
-    drawMobileControls();
-};
-
-var runHalftimeLoop = function() {
-    if (!paused) {
-        var elapsed = floor((millis() - breakStart)/1000);
-        var remaining = breakDuration - elapsed;
-        if (remaining <= 0) {
-            currentPeriod = 2; timerStart = millis(); initEntities(); gameState = "PLAYING";
-            return;
-        }
-    }
-    drawPitch();
-    drawPlayer(player1);
-    drawPlayer(player2);
-    var stage = document.getElementById('stage');
-    if (lightMode) fill(246, 249, 252, 220); else fill(12, 19, 34, 210);
-    rect(0, 0, canvasWidth, canvasHeight);
-    var elapsed2 = floor((millis() - breakStart)/1000);
-    var remaining2 = breakDuration - elapsed2;
-    fill(theme.text); textAlign(CENTER, CENTER); textSize(22);
-    text("HALF TIME", 200, 150);
-    fill(theme.gold); textSize(14);
-    text("Resuming in " + max(0, remaining2) + "s", 200, 190);
-};
-
-var runPenaltyLoop = function() {
-    if (!paused) {
-        if (penBallState === "KICKED") {
-            var progress = min(1, (millis() - penTimer) / 600);
-            if (progress >= 1) evaluatePenaltyFrameResult();
-        }
-    }
-
-    if (retroMode) background(34, 139, 34);
-    else if (lightMode) {
+        background(34, 139, 34);
+    } else if (lightMode) {
         for (var yL = 0; yL < 130; yL += 4) {
             var tL = yL / 130;
             var cL = lerpColor(color(148, 172, 198), color(186, 208, 226), tL);
@@ -3541,59 +2387,486 @@ var runPenaltyLoop = function() {
         }
     }
 
-    // Penalty markers
+    var headerY = 6;
+    if (lightMode) fill(255, 255, 255, 235); else fill(22, 33, 58, 235);
+    noStroke(); rect(60, headerY, 280, 26, 8);
+    fill(theme.text); textAlign(CENTER, CENTER); textSize(12);
+    text("PENALTY SHOOTOUT", 200, 19);
+
+    drawFlag(selectedCountry, 22, 12, 26, 16);
+    drawFlag(aiCountry, 352, 12, 26, 16);
+
     for (var pi = 0; pi < 5; pi++) {
-        fill(p1PenScores[pi] === 1 ? color(0,200,80) : (p1PenScores[pi] === -1 ? color(230,50,50) : (lightMode ? color(170,182,198) : color(80))));
-        ellipse(60 + pi*14, 46, 10, 10);
-        fill(p2PenScores[pi] === 1 ? color(0,200,80) : (p2PenScores[pi] === -1 ? color(230,50,50) : (lightMode ? color(170,182,198) : color(80))));
-        ellipse(340 - pi*14, 46, 10, 10);
+        var cx1 = 60 + pi*14, cx2 = 340 - pi*14;
+        if (p1PenScores[pi] === 1) fill(50, 200, 100);
+        else if (p1PenScores[pi] === -1) fill(220, 60, 60);
+        else fill(lightMode ? color(180, 190, 205) : color(80, 90, 110));
+        noStroke(); ellipse(cx1, 46, 10, 10);
+        if (p2PenScores[pi] === 1) fill(50, 200, 100);
+        else if (p2PenScores[pi] === -1) fill(220, 60, 60);
+        else fill(lightMode ? color(180, 190, 205) : color(80, 90, 110));
+        ellipse(cx2, 46, 10, 10);
     }
 
-    var gx = 130, gy = 100, gw = 140, gh = 80;
-    fill(10, 14, 22, 200); noStroke(); rect(gx, gy, gw, gh);
-    stroke(220, 220, 220, 100); strokeWeight(1);
-    for (var gi = gx; gi <= gx + gw; gi += 8) line(gi, gy, gi, gy + gh);
-    for (var gj = gy; gj <= gy + gh; gj += 8) line(gx, gj, gx + gw, gj);
-    stroke(0, 0, 0, 160); strokeWeight(8); noFill();
-    rect(gx + 2, gy + 3, gw, gh);
-    stroke(240); strokeWeight(6); rect(gx, gy, gw, gh);
-    stroke(255); strokeWeight(2); rect(gx, gy, gw, gh);
+    var gx = 128, gy = 96, gw = 144, gh = 84;
+    fill(8, 14, 24, 210); noStroke(); rect(gx, gy, gw, gh);
+    stroke(lightMode ? color(255, 255, 255, 60) : color(200, 220, 250, 55));
+    strokeWeight(0.6);
+    for (var gi = gx + 6; gi < gx + gw; gi += 8) line(gi, gy + 2, gi, gy + gh - 2);
+    for (var gj = gy + 6; gj < gy + gh; gj += 8) line(gx + 2, gj, gx + gw - 2, gj);
+    stroke(0, 0, 0, lightMode ? 80 : 160); strokeWeight(8); noFill();
+    rect(gx, gy, gw, gh, 2);
+    stroke(lightMode ? color(240, 245, 250) : color(220, 235, 255)); strokeWeight(5);
+    rect(gx, gy, gw, gh, 2);
+    stroke(255); strokeWeight(2);
+    rect(gx, gy, gw, gh, 2);
+
+    stroke(lightMode ? color(180, 200, 220) : color(120, 145, 180)); strokeWeight(2);
+    line(gx - 10, gy + gh + 1, gx + gw + 10, gy + gh + 1);
 
     var goalieTeam = (penaltyTurn === 1) ? aiCountry : selectedCountry;
     var goalieLook = (penaltyTurn === 1) ? -1 : 1;
     var goalieX = 200;
-    if (penGoalieState === "LEFT") goalieX = 150;
-    else if (penGoalieState === "RIGHT") goalieX = 250;
-    drawCountryball(goalieTeam, goalieX, 155, 18, goalieLook);
+    if (penGoalieState === "LEFT") goalieX = 152;
+    else if (penGoalieState === "RIGHT") goalieX = 248;
+    drawCountryball(goalieTeam, goalieX, 156, 18, goalieLook, 178);
 
     var bX = 200, bY = 240;
     if (penBallState === "KICKED") {
-        var progress2 = min(1, (millis() - penTimer)/600);
+        var progress2 = min(1, (millis() - penTimer) / 600);
         if (penBallDir === "LEFT") bX = lerp(200, 155, progress2);
         else if (penBallDir === "RIGHT") bX = lerp(200, 245, progress2);
         bY = lerp(240, 130, progress2);
     }
-    noStroke(); fill(0, 0, 0, 100);
-    ellipse(bX + 3, bY + 8, 20, 6);
+    noStroke(); fill(0, 0, 0, 90);
+    ellipse(bX + 2, bY + 9, 20, 6);
     var penBallFlag = (penaltyTurn === 1) ? selectedCountry : aiCountry;
     if (retroMode) { fill(255); stroke(0); strokeWeight(1.5); ellipse(bX, bY, 16, 16); }
     else drawBallScanlines(bX, bY, 8, penBallFlag);
+
+    if (penBallState === "READY" && penaltyTurn === 1) {
+        noFill(); stroke(theme.gold); strokeWeight(1.5);
+        arc(200, 240, 80, 80, PI, PI * 1.35);
+        arc(200, 240, 80, 80, -PI * 0.35, 0);
+    }
+
     updateAndDrawParticles();
 
-    // Touch arrows for mobile
     if (mobileControlsEnabled) {
         fill(30, 60, 100, 200); stroke(255, 200); strokeWeight(2);
-        rect(20, 330, 100, 60, 10);
-        fill(255); triangle(45, 360, 75, 342, 75, 378);
-        fill(30, 60, 100, 200); rect(280, 330, 100, 60, 10);
-        fill(255); triangle(355, 360, 325, 342, 325, 378);
+        rect(14, 322, 168, 66, 12);
+        fill(255); triangle(56, 355, 96, 336, 96, 374);
+        fill(30, 60, 100, 200); rect(218, 322, 168, 66, 12);
+        fill(255); triangle(344, 355, 304, 336, 304, 374);
     }
 
     fill(theme.gold); textSize(12); textAlign(CENTER, CENTER);
     if (penBallState === "READY") {
-        if (penaltyTurn === 1) text("LEFT or RIGHT to Shoot", 200, 290);
-        else text("LEFT or RIGHT to Dive", 200, 290);
+        if (penaltyTurn === 1) text("LEFT or RIGHT to Shoot", 200, 296);
+        else text("LEFT or RIGHT to Dive", 200, 296);
     }
+};
+
+// ============================================================
+// HTML UI LAYER
+// ============================================================
+var currentScreenId = null;
+var HUD_SCREENS = { PLAYING: 1, OVERTIME: 1, HALFTIME: 1, PENALTIES: 1 };
+
+var screenForState = function() {
+    if (paused) return 'screen-pause';
+    switch (gameState) {
+        case 'TITLE': return 'screen-title';
+        case 'SETTINGS': return 'screen-settings';
+        case 'DIFFICULTY_SELECT': return 'screen-difficulty';
+        case 'MATCH_START': return 'screen-matchstart';
+        case 'MATCH_END': return 'screen-matchend';
+        default: return null;
+    }
+};
+
+var setScreen = function(id) {
+    if (currentScreenId === id) return;
+    currentScreenId = id;
+    document.querySelectorAll('.screen').forEach(function(el) { el.hidden = (el.id !== id); });
+};
+var setHUDVisible = function(visible) {
+    var hud = document.getElementById('hud');
+    var pb = document.getElementById('pause-button');
+    if (hud) hud.hidden = !visible;
+    if (pb) pb.hidden = !visible;
+};
+
+var _lastHudKey = '';
+var updateHUDContent = function() {
+    var key = score1 + '|' + score2 + '|' + currentPeriod + '|' + Math.floor((millis() - timerStart)/1000) + '|' + player1.teamIndex + '|' + player2.teamIndex + '|' + player1.name + '|' + player2.name;
+    if (key === _lastHudKey) return;
+    _lastHudKey = key;
+
+    document.getElementById('hud-s1').textContent = score1;
+    document.getElementById('hud-s2').textContent = score2;
+    document.getElementById('hud-name1').textContent = player1.name;
+    document.getElementById('hud-name2').textContent = player2.name;
+
+    document.getElementById('hud-flag1').style.backgroundImage = 'url(' + flagDataURL(player1.teamIndex, 30, 20) + ')';
+    document.getElementById('hud-flag2').style.backgroundImage = 'url(' + flagDataURL(player2.teamIndex, 30, 20) + ')';
+
+    var timeElapsed = floor((millis() - timerStart)/1000);
+    var targetSecs = (currentPeriod === 3) ? extraTimeDuration : periodDuration;
+    var displaySecs = max(0, targetSecs - timeElapsed);
+    var label;
+    if (inGroupStage && gameState !== 'PENALTIES') label = "Group " + getPlayerGroupLetter() + " · Match " + (playerMatchesPlayed + 1) + "/3";
+    else if (currentPeriod === 1) label = "1st Half";
+    else if (currentPeriod === 2) label = "2nd Half";
+    else label = "Extra Time";
+    if (gameState === 'PENALTIES') label = "Penalties";
+    document.getElementById('hud-clock').textContent = label + ' · ' + displaySecs + 's';
+};
+
+var _flagDataCache = {};
+var flagDataURL = function(idx, w, h) {
+    var key = 'f' + idx + '_' + w + 'x' + h;
+    if (_flagDataCache[key]) return _flagDataCache[key];
+    var sprite = getFlagSprite(idx, w, h);
+    var url = sprite.canvas.toDataURL();
+    _flagDataCache[key] = url;
+    return url;
+};
+
+var RESUMABLE_STATES = { PLAYING:1, OVERTIME:1, HALFTIME:1, PENALTIES:1, BRACKET:1, GROUPS:1, MATCH_START:1 };
+var hasResumableSave = function() {
+    if (!isSignedIn()) return false;
+    if (!savedGame || typeof savedGame !== 'object') return false;
+    return !!RESUMABLE_STATES[savedGame.gameState];
+};
+
+var refreshAllUI = function() {
+    var gn = document.getElementById('greeting-name');
+    if (gn) gn.textContent = username;
+    var fn = document.getElementById('footer-note');
+    if (fn) fn.textContent = isSignedIn() ? "Signed in as " + username + " · Progress saved" : "Not signed in · Sign in via Settings to save progress";
+    var btnContinue = document.getElementById('btn-continue');
+    if (btnContinue) btnContinue.hidden = !hasResumableSave();
+
+    var inputUser = document.getElementById('input-username');
+    if (inputUser && document.activeElement !== inputUser) inputUser.value = (username === "Player") ? "" : username;
+    var inputPass = document.getElementById('input-password');
+    if (inputPass) inputPass.type = passwordVisible ? 'text' : 'password';
+
+    var togHT = document.getElementById('tog-ht'); if (togHT) togHT.checked = halftimeEnabled;
+    var togMob = document.getElementById('tog-mobile'); if (togMob) togMob.checked = mobileControlsEnabled;
+    var togRetro = document.getElementById('tog-retro'); if (togRetro) togRetro.checked = retroMode;
+    var togDark = document.getElementById('tog-dark'); if (togDark) togDark.checked = !lightMode;
+
+    var segArr = document.getElementById('seg-arrows'), segWasd = document.getElementById('seg-wasd');
+    if (segArr) segArr.setAttribute('aria-pressed', p1ControlMode === 'ARROWS' ? 'true' : 'false');
+    if (segWasd) segWasd.setAttribute('aria-pressed', p1ControlMode === 'WASD' ? 'true' : 'false');
+
+    var ab = document.getElementById('ach-brazil'); if (ab) ab.classList.toggle('unlocked', !!achievements.brazilAward);
+    var av = document.getElementById('ach-victory'); if (av) av.classList.toggle('unlocked', !!achievements.victory);
+    var ac = document.getElementById('ach-champion'); if (ac) ac.classList.toggle('unlocked', !!achievements.champion);
+
+    document.querySelectorAll('.diff-card').forEach(function(card) {
+        card.setAttribute('aria-pressed', card.dataset.diff === difficulty ? 'true' : 'false');
+    });
+
+    if (gameState === 'MATCH_START') {
+        var isLocal = (gameMode === 'LOCAL');
+        var p1C = selectedCountry, p2C = isLocal ? p2Country : aiCountry;
+        var n1 = isLocal ? tempName1 : username;
+        var n2 = isLocal ? tempName2 : tournamentTeams[aiCountry];
+        var el1 = document.getElementById('ms-name1'); if (el1) el1.textContent = n1;
+        var el2 = document.getElementById('ms-name2'); if (el2) el2.textContent = n2;
+        var ec1 = document.getElementById('ms-country1'); if (ec1) ec1.textContent = tournamentTeams[p1C];
+        var ec2 = document.getElementById('ms-country2'); if (ec2) ec2.textContent = tournamentTeams[p2C];
+        var em = document.getElementById('ms-mode'); if (em) em.textContent = isLocal ? 'Local 2-Player' : 'Single Player · ' + difficulty;
+        var eg = document.getElementById('ms-group');
+        if (eg) {
+            if (inGroupStage) { eg.hidden = false; eg.textContent = "Group " + getPlayerGroupLetter() + " · Match " + (playerMatchesPlayed + 1) + " of 3"; }
+            else eg.hidden = true;
+        }
+    }
+
+    if (gameState === 'MATCH_END') {
+        var badge = document.getElementById('me-badge');
+        var nameEl = document.getElementById('me-name');
+        var scoreEl = document.getElementById('me-score');
+        if (badge && nameEl && scoreEl) {
+            nameEl.classList.remove('win', 'loss', 'draw');
+            badge.classList.remove('win', 'loss', 'draw');
+            if (matchIsWin) { badge.classList.add('win'); badge.textContent = 'Victory'; nameEl.classList.add('win'); nameEl.textContent = matchWinnerName.toUpperCase() + ' WINS'; }
+            else if (matchIsDraw) { badge.classList.add('draw'); badge.textContent = 'Draw'; nameEl.classList.add('draw'); nameEl.textContent = 'MATCH DRAWN'; }
+            else { badge.classList.add('loss'); badge.textContent = 'Defeat'; nameEl.classList.add('loss'); nameEl.textContent = 'YOU LOST'; }
+            scoreEl.textContent = matchScoreLine;
+        }
+    }
+
+    var pn = document.getElementById('pause-note');
+    if (pn) pn.textContent = isSignedIn() ? "Save keeps score, timer, and tournament progress." : "Sign in to save progress across sessions.";
+};
+
+var syncUI = function() {
+    var wanted = screenForState();
+    setScreen(wanted);
+    var showHud = HUD_SCREENS[gameState] && !paused;
+    setHUDVisible(!!showHud);
+    if (showHud) updateHUDContent();
+};
+
+var onAction = function(action) {
+    switch (action) {
+        case 'continue': if (hasResumableSave()) restoreSavedGame(); break;
+        case 'single': gameMode = "SINGLE"; gameState = "TOURNAMENT_SELECT"; break;
+        case 'local':
+            if (!mobileControlsEnabled) { gameMode = "LOCAL"; tempName1 = "Player 1"; tempName2 = "Player 2"; p2Country = 1; gameState = "P1_NAME"; }
+            break;
+        case 'penalty': gameMode = "PENALTY_ONLY"; gameState = "PENALTY_P1_SELECT"; break;
+        case 'settings': gameState = "SETTINGS"; refreshAllUI(); break;
+        case 'settings-back': {
+            var iu = document.getElementById('input-username');
+            if (iu) { var v = iu.value.trim(); username = v.length > 0 ? v : 'Player'; }
+            var ip = document.getElementById('input-password');
+            if (ip && ip.value.length > 0) { checkPasswordMatch(ip.value); ip.value = ''; }
+            saveSettings(); saveActiveSession();
+            gameState = "TITLE"; refreshAllUI(); break;
+        }
+        case 'toggle-pass': passwordVisible = !passwordVisible; refreshAllUI(); break;
+        case 'difficulty-back': gameState = "TOURNAMENT_SELECT"; break;
+        case 'difficulty-continue': buildGroups(); aiCountry = getPlayerOpponent(0); gameState = "MATCH_START"; refreshAllUI(); break;
+        case 'matchstart-begin': score1 = 0; score2 = 0; currentPeriod = 1; initEntities(); timerStart = millis(); gameState = "PLAYING"; break;
+        case 'matchend-continue': continueAfterMatch(); break;
+        case 'pause-resume': unpauseGame(); break;
+        case 'pause-save': saveCurrentGame(); abandonGame(); break;
+        case 'pause-menu': abandonGame(); break;
+    }
+};
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action]');
+    if (btn) { e.preventDefault(); onAction(btn.dataset.action); return; }
+    var seg = e.target.closest('[data-seg]');
+    if (seg) {
+        e.preventDefault();
+        if (seg.dataset.seg === 'p1ctrl') { p1ControlMode = seg.dataset.value; saveSettings(); refreshAllUI(); }
+        return;
+    }
+    var card = e.target.closest('[data-diff]');
+    if (card) {
+        e.preventDefault();
+        difficulty = card.dataset.diff;
+        saveSettings(); refreshAllUI();
+    }
+});
+
+var wireToggle = function(id, onChange) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', function() { onChange(el.checked); saveSettings(); refreshAllUI(); });
+};
+wireToggle('tog-ht', function(v) { halftimeEnabled = v; });
+wireToggle('tog-mobile', function(v) { mobileControlsEnabled = v; });
+wireToggle('tog-retro', function(v) { retroMode = v; _flagDataCache = {}; });
+wireToggle('tog-dark', function(v) { lightMode = !v; applyTheme(); });
+
+document.addEventListener('DOMContentLoaded', function() {
+    var iu = document.getElementById('input-username');
+    if (iu) iu.addEventListener('input', function() { var v = iu.value.trim(); if (v.length > 0) username = v; saveActiveSession(); });
+});
+
+// ============================================================
+// INPUT
+// ============================================================
+var keyPressed = function() {
+    keys[keyCode] = true;
+    if (keyCode === 80) {
+        if (gameState === "PLAYING" || gameState === "OVERTIME" || gameState === "HALFTIME" || gameState === "PENALTIES") {
+            if (paused) unpauseGame(); else pauseGame();
+        }
+        return;
+    }
+    if (paused) return;
+    if (gameState === "MATCH_END") { if (keyCode === 10 || keyCode === 13 || keyCode === 32) continueAfterMatch(); }
+    if (gameState === "PENALTIES") {
+        if (keyCode === LEFT || keyCode === 37 || keyCode === 65) triggerPenaltyShot("LEFT");
+        if (keyCode === RIGHT || keyCode === 39 || keyCode === 68) triggerPenaltyShot("RIGHT");
+    }
+};
+var keyReleased = function() { keys[keyCode] = false; };
+
+// ============================================================
+// CANVAS CLICK HANDLING
+// ============================================================
+var handleCanvasClick = function(mx, my) {
+    if (paused) return;
+
+    if (gameState === "BRACKET") {
+        for (var i = 0; i < canvasButtons.length; i++) {
+            var b = canvasButtons[i];
+            if (mx > b.x && mx < b.x + b.w && my > b.y && my < b.y + b.h) {
+                if (b.action === "bracket-menu") gameState = "TITLE";
+                else if (b.action === "bracket-sim") simulateCurrentRound();
+                else if (b.action === "bracket-play") { setNextAiOpponent(); gameState = "MATCH_START"; refreshAllUI(); }
+                return;
+            }
+        }
+        return;
+    }
+
+    if (gameState === "GROUPS") {
+        for (var j = 0; j < canvasButtons.length; j++) {
+            var gb = canvasButtons[j];
+            if (mx > gb.x && mx < gb.x + gb.w && my > gb.y && my < gb.y + gb.h) {
+                if (gb.action === "groups-play") { aiCountry = getPlayerOpponent(playerMatchesPlayed); gameState = "MATCH_START"; refreshAllUI(); }
+                else if (gb.action === "groups-continue") { var q = determineQualifiers(); fillKnockoutBracket(q); inGroupStage = false; gameState = "BRACKET"; }
+                else if (gb.action === "groups-bracket") { var q2 = determineQualifiers(); fillKnockoutBracket(q2); inGroupStage = false; gameState = "BRACKET"; }
+                return;
+            }
+        }
+        return;
+    }
+
+    if (gameState === "TOURNAMENT_SELECT" || gameState === "PENALTY_P1_SELECT" || gameState === "P1_COUNTRY" || gameState === "P2_COUNTRY") {
+        for (var k = 0; k < tournamentTeams.length; k++) {
+            var r = getCountryCellRect(k);
+            if (mx > r.x && mx < r.x + r.w && my > r.y && my < r.y + r.h) {
+                if (gameState === "TOURNAMENT_SELECT") {
+                    selectedCountry = k;
+                    savedGame = null; saveGameToStorage();
+                    if (gameMode === "SINGLE") gameState = "DIFFICULTY_SELECT";
+                    else { buildGroups(); inGroupStage = false; fillKnockoutBracket(determineQualifiers()); gameState = "BRACKET"; }
+                    refreshAllUI();
+                } else if (gameState === "PENALTY_P1_SELECT") {
+                    selectedCountry = k;
+                    do { aiCountry = floor(random(0, 48)); } while (aiCountry === selectedCountry);
+                    savedGame = null; saveGameToStorage(); gameState = "PENALTIES"; setupPenaltyData();
+                } else if (gameState === "P1_COUNTRY") { selectedCountry = k; gameState = "P2_NAME"; }
+                else if (gameState === "P2_COUNTRY") { p2Country = k; gameState = "MATCH_START"; refreshAllUI(); }
+                return;
+            }
+        }
+        return;
+    }
+
+    if (gameState === "PLAYING" || gameState === "OVERTIME" || gameState === "PENALTIES") return;
+};
+
+// ============================================================
+// PAUSE
+// ============================================================
+var pauseGame = function() {
+    if (paused) return;
+    if (gameState !== "PLAYING" && gameState !== "OVERTIME" && gameState !== "HALFTIME" && gameState !== "PENALTIES") return;
+    paused = true; pauseStart = millis(); releaseJoystick();
+};
+var unpauseGame = function() {
+    if (!paused) return;
+    var delta = millis() - pauseStart;
+    if (gameState === "PLAYING" || gameState === "OVERTIME") timerStart += delta;
+    else if (gameState === "HALFTIME") breakStart += delta;
+    else if (gameState === "PENALTIES" && penBallState === "KICKED") penTimer += delta;
+    paused = false;
+};
+var abandonGame = function() { paused = false; particles = []; releaseJoystick(); gameState = "TITLE"; refreshAllUI(); };
+
+// ============================================================
+// SAVE / LOAD
+// ============================================================
+var copyMatches = function(arr) {
+    var out = [];
+    if (!arr) return out;
+    for (var i = 0; i < arr.length; i++) { var m = arr[i]; out.push({ t1: m.t1, t2: m.t2, s1: m.s1, s2: m.s2, winner: m.winner }); }
+    return out;
+};
+var copyGroups = function(src) {
+    var out = [];
+    for (var i = 0; i < src.length; i++) {
+        var g = src[i];
+        var res = [];
+        for (var j = 0; j < g.results.length; j++) res.push(g.results[j] ? { sa: g.results[j].sa, sb: g.results[j].sb } : null);
+        out.push({ teams: g.teams.slice(0), results: res, standings: g.standings ? g.standings.slice(0) : null });
+    }
+    return out;
+};
+var captureSaveState = function() {
+    return {
+        gameMode: gameMode, gameState: gameState, score1: score1, score2: score2, currentPeriod: currentPeriod,
+        elapsedMs: (gameState === "PLAYING" || gameState === "OVERTIME") ? (millis() - timerStart) : 0,
+        selectedCountry: selectedCountry, aiCountry: aiCountry, tournamentRound: tournamentRound,
+        bracket: { r0: copyMatches(bracket.r0), r1: copyMatches(bracket.r1), r2: copyMatches(bracket.r2), r3: copyMatches(bracket.r3), r4: copyMatches(bracket.r4) },
+        groups: copyGroups(groups), playerGroupIdx: playerGroupIdx, playerMatchesPlayed: playerMatchesPlayed, inGroupStage: inGroupStage,
+        penaltyTurn: penaltyTurn, penaltyIndex: penaltyIndex, p1PenScores: p1PenScores.slice(0), p2PenScores: p2PenScores.slice(0),
+        penBallState: penBallState, penGoalieState: penGoalieState, penBallDir: penBallDir,
+        player1: { x: player1.x, y: player1.y, vx: player1.vx, vy: player1.vy },
+        player2: { x: player2.x, y: player2.y, vx: player2.vx, vy: player2.vy },
+        ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, angle: ball.angle, teamIndex: ball.teamIndex }
+    };
+};
+var saveCurrentGame = function() { savedGame = captureSaveState(); saveGameToStorage(); };
+var restoreSavedGame = function() {
+    if (!savedGame) return;
+    var s = savedGame;
+    gameMode = s.gameMode; gameState = s.gameState;
+    score1 = s.score1; score2 = s.score2; currentPeriod = s.currentPeriod;
+    selectedCountry = s.selectedCountry; aiCountry = s.aiCountry; tournamentRound = s.tournamentRound;
+    if (s.bracket) {
+        bracket.r0 = copyMatches(s.bracket.r0 || []); bracket.r1 = copyMatches(s.bracket.r1 || []);
+        bracket.r2 = copyMatches(s.bracket.r2 || []); bracket.r3 = copyMatches(s.bracket.r3 || []); bracket.r4 = copyMatches(s.bracket.r4 || []);
+    }
+    if (s.groups) groups = copyGroups(s.groups);
+    if (s.playerGroupIdx !== undefined) playerGroupIdx = s.playerGroupIdx;
+    if (s.playerMatchesPlayed !== undefined) playerMatchesPlayed = s.playerMatchesPlayed;
+    if (s.inGroupStage !== undefined) inGroupStage = s.inGroupStage;
+    penaltyTurn = s.penaltyTurn; penaltyIndex = s.penaltyIndex;
+    p1PenScores = (s.p1PenScores || []).slice(0); p2PenScores = (s.p2PenScores || []).slice(0);
+    penBallState = s.penBallState; penGoalieState = s.penGoalieState; penBallDir = s.penBallDir;
+    initEntities();
+    if (s.player1) { player1.x = s.player1.x; player1.y = s.player1.y; player1.vx = s.player1.vx; player1.vy = s.player1.vy; }
+    if (s.player2) { player2.x = s.player2.x; player2.y = s.player2.y; player2.vx = s.player2.vx; player2.vy = s.player2.vy; }
+    if (s.ball) { ball.x = s.ball.x; ball.y = s.ball.y; ball.vx = s.ball.vx; ball.vy = s.ball.vy; ball.angle = s.ball.angle; ball.teamIndex = s.ball.teamIndex; }
+    if (gameState === "PLAYING" || gameState === "OVERTIME") timerStart = millis() - (s.elapsedMs || 0);
+    else if (gameState === "PENALTIES") penTimer = millis();
+    particles = []; paused = false; savedGame = null; saveGameToStorage();
+    refreshAllUI();
+};
+
+// ============================================================
+// LOOPS
+// ============================================================
+var runGameLoop = function() {
+    if (!paused) {
+        var periodMax = (currentPeriod === 3) ? extraTimeDuration : periodDuration;
+        if (floor((millis() - timerStart) / 1000) >= periodMax) { processPeriodEnd(); return; }
+        updatePlayer(player1, "P1_INPUT");
+        updatePlayer(player2, (gameMode === "SINGLE") ? "AI" : "P2_INPUT");
+        var prevBallX = ball.x, prevBallY = ball.y;
+        updateBall();
+        checkCollisions(prevBallX, prevBallY);
+        checkGoals();
+    }
+    drawPitch();
+    drawPlayer(player1);
+    drawPlayer(player2);
+    drawBall();
+    updateAndDrawParticles();
+    drawMobileControls();
+};
+
+var runHalftimeLoop = function() {
+    if (!paused) {
+        var elapsed = floor((millis() - breakStart)/1000);
+        if (breakDuration - elapsed <= 0) { currentPeriod = 2; timerStart = millis(); initEntities(); gameState = "PLAYING"; return; }
+    }
+    drawPitch();
+    drawPlayer(player1);
+    drawPlayer(player2);
+    if (lightMode) fill(246, 249, 252, 220); else fill(12, 19, 34, 210);
+    rect(0, 0, canvasWidth, canvasHeight);
+    var elapsed2 = floor((millis() - breakStart)/1000);
+    var remaining2 = breakDuration - elapsed2;
+    fill(theme.text); textAlign(CENTER, CENTER); textSize(22);
+    text("HALF TIME", 200, 150);
+    fill(theme.gold); textSize(14);
+    text("Resuming in " + max(0, remaining2) + "s", 200, 190);
 };
 
 // ============================================================
@@ -3603,35 +2876,26 @@ var draw = function() {
     background(theme.bg);
     if (teamColors.length === 0) {
         initColors();
-        loadActiveSession();
-        loadAccountData();
-        loadGameFromStorage();
+        loadActiveSession(); loadAccountData(); loadGameFromStorage();
         refreshAllUI();
     }
 
     canvasButtons = [];
 
-    // Sync HTML UI
     syncUI();
 
-    // Canvas rendering depends on state
     switch (gameState) {
-        case 'PLAYING': case 'OVERTIME':
-            runGameLoop();
-            break;
-        case 'HALFTIME':
-            runHalftimeLoop();
-            break;
-        case 'PENALTIES':
-            runPenaltyLoop();
-            break;
+        case 'PLAYING': case 'OVERTIME': runGameLoop(); break;
+        case 'HALFTIME': runHalftimeLoop(); break;
+        case 'PENALTIES': drawPenaltyScene(); break;
         case 'TOURNAMENT_SELECT':
             drawPitch();
-            var stage = document.getElementById('stage');
             if (lightMode) fill(246, 249, 252, 210); else fill(12, 19, 34, 200);
             rect(0, 0, canvasWidth, canvasHeight);
             fill(theme.text); textAlign(CENTER, CENTER); textSize(13);
+            textStyle(BOLD);
             text("SELECT YOUR NATION", 200, 15);
+            textStyle(NORMAL);
             drawCountryGrid(selectedCountry);
             break;
         case 'PENALTY_P1_SELECT':
@@ -3639,28 +2903,25 @@ var draw = function() {
             if (lightMode) fill(246, 249, 252, 210); else fill(12, 19, 34, 200);
             rect(0, 0, canvasWidth, canvasHeight);
             fill(theme.text); textAlign(CENTER, CENTER); textSize(13);
-            text("SHOOTOUT: SELECT NATION", 200, 15);
+            textStyle(BOLD);
+            text("SHOOTOUT · SELECT NATION", 200, 15);
+            textStyle(NORMAL);
             drawCountryGrid(selectedCountry);
             break;
         case 'P1_COUNTRY':
         case 'P2_COUNTRY':
             drawPitch();
-            if (lightMode) fill(246, 249, 252, 210); else fill(12, 19, 34, 200);
+            if (lightMode) fill(246, 249, 252, 210) ; else fill(12, 19, 34, 200);
             rect(0, 0, canvasWidth, canvasHeight);
             fill(theme.text); textAlign(CENTER, CENTER); textSize(12);
-            text(gameState === 'P1_COUNTRY' ? "PLAYER 1 — PICK COUNTRY" : "PLAYER 2 — PICK COUNTRY", 200, 15);
+            textStyle(BOLD);
+            text(gameState === 'P1_COUNTRY' ? "PLAYER 1 · PICK COUNTRY" : "PLAYER 2 · PICK COUNTRY", 200, 15);
+            textStyle(NORMAL);
             drawCountryGrid(-1);
             break;
-        case 'GROUPS':
-            drawGroupsScreen();
-            break;
-        case 'BRACKET':
-            drawBracketScreen();
-            break;
-        default:
-            // Menu screens — draw pitch behind (dimmed by HTML overlay)
-            drawPitch();
-            break;
+        case 'GROUPS': drawGroupsScreen(); break;
+        case 'BRACKET': drawBracketScreen(); break;
+        default: drawPitch(); break;
     }
 };
 
@@ -3669,30 +2930,72 @@ var draw = function() {
 // ============================================================
 function setup() {
     var c = createCanvas(canvasWidth, canvasHeight);
-    pixelDensity(1);
+    var d = 1;
+    try { d = (typeof displayDensity === 'function') ? displayDensity() : (window.devicePixelRatio || 1); } catch (e) { d = 1; }
+    pixelDensity(Math.min(2, Math.max(1, Math.round(d))));
+
     c.parent(document.getElementById('stage'));
     c.elt.id = 'game';
+    imageMode(CORNER);
     loadSettings();
     refreshAllUI();
 
-    // Route canvas pointer events
+    var toCanvas = function(e) {
+        var rect = c.elt.getBoundingClientRect();
+        return {
+            x: ((e.clientX - rect.left) / rect.width) * canvasWidth,
+            y: ((e.clientY - rect.top) / rect.height) * canvasHeight
+        };
+    };
+
     c.elt.addEventListener('pointerdown', function(e) {
         e.preventDefault();
-        var rect = c.elt.getBoundingClientRect();
-        var cssX = (e.clientX - rect.left) / rect.width;
-        var cssY = (e.clientY - rect.top) / rect.height;
-        handleCanvasClick(cssX * canvasWidth, cssY * canvasHeight);
-    });
-    c.elt.addEventListener('pointermove', function(e) {
-        if (mobileControlsEnabled && joystick.active) {
-            var rect = c.elt.getBoundingClientRect();
-            var cssX = (e.clientX - rect.left) / rect.width;
-            var cssY = (e.clientY - rect.top) / rect.height;
-            updateJoystick(cssX * canvasWidth, cssY * canvasHeight);
+        try { c.elt.setPointerCapture(e.pointerId); } catch (err) {}
+        var p = toCanvas(e);
+
+        if (!paused && mobileControlsEnabled && (gameState === 'PLAYING' || gameState === 'OVERTIME')) {
+            if (p.x > canvasWidth * 0.70 && p.y > 240) {
+                jumpPointerId = e.pointerId;
+                mobileBtn.jump = true;
+                return;
+            }
+            if (p.y > 240 && p.x < canvasWidth * 0.70) {
+                joystickPointerId = e.pointerId;
+                handleJoystickPress(p.x, p.y);
+                return;
+            }
         }
+        if (!paused && mobileControlsEnabled && gameState === 'PENALTIES' && p.y > 320) {
+            triggerPenaltyShot(p.x < canvasWidth / 2 ? 'LEFT' : 'RIGHT');
+            return;
+        }
+
+        handleCanvasClick(p.x, p.y);
     });
-    c.elt.addEventListener('pointerup', function() { releaseJoystick(); });
-    c.elt.addEventListener('pointercancel', function() { releaseJoystick(); });
+
+    c.elt.addEventListener('pointermove', function(e) {
+        if (e.pointerId !== joystickPointerId) return;
+        if (!mobileControlsEnabled || !joystick.active) return;
+        var p = toCanvas(e);
+        updateJoystick(p.x, p.y);
+    });
+
+    var endPointer = function(e) {
+        if (e.pointerId === joystickPointerId) { joystickPointerId = null; releaseJoystick(); }
+        if (e.pointerId === jumpPointerId) { jumpPointerId = null; mobileBtn.jump = false; }
+        try {
+            if (c.elt.hasPointerCapture && c.elt.hasPointerCapture(e.pointerId)) c.elt.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+    };
+    c.elt.addEventListener('pointerup', endPointer);
+    c.elt.addEventListener('pointercancel', endPointer);
+    c.elt.addEventListener('lostpointercapture', function(e) {
+        if (e.pointerId === joystickPointerId) { joystickPointerId = null; releaseJoystick(); }
+        if (e.pointerId === jumpPointerId) { jumpPointerId = null; mobileBtn.jump = false; }
+    });
+
+    var pb = document.getElementById('pause-button');
+    if (pb) pb.addEventListener('click', function() { if (paused) unpauseGame(); else pauseGame(); });
 }
 </script>
 </body>
